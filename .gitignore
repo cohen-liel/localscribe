@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Models (too large for git)
+*.bin
+*.pt
+*.onnx
+*.mlmodel
+*.mlpackage/
+
+# Output files
+LocalScribe_Output/
+
+# Secrets
+.localscribe_hf_token
+*.token
+
+# Audio files (test recordings)
+*.wav
+*.mp3
+*.m4a
+*.ogg
+*.flac

@@ -37,9 +37,13 @@ LocalScribe_Output/
 .localscribe_hf_token
 *.token
 
-# Audio files (test recordings)
+# Audio files (test recordings - exclude from root)
 *.wav
 *.mp3
 *.m4a
 *.ogg
 *.flac
+
+# But INCLUDE test data audio files
+!test_data/audio/*.mp3
+!test_data/audio/*.wav

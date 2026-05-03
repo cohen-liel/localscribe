@@ -12,5 +12,9 @@ torchaudio>=2.0.0
 # Audio processing
 pydub>=0.25.1
 
+# Document processing
+pdfplumber>=0.10.0
+python-docx>=1.0.0
+
 # Optional: for better audio format support
 # soundfile>=0.12.0

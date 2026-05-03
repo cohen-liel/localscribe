@@ -1,6 +1,6 @@
 # LocalScribe v2.0 - תמלול + זיהוי דוברים + סיכום פגישות
 
-**תמלול פגישות בעברית עם זיהוי "מי אמר מה" וסיכום חכם - הכל 100% מקומי על המאק שלך.**
+**תמלול פגישות בעברית עם זיהוי "מי אמר מה" + סיכום מסמכים חכם - הכל 100% מקומי על המאק שלך.**
 
 ---
 
@@ -13,6 +13,8 @@
 | סיכום | Qwen3 1.7B | **Qwen3 1.7B** (עם הקשר דוברים) |
 | Action Items | בסיסי | **משויך לדובר ספציפי** |
 | Apple Metal GPU | ❌ | **✅** (מאיץ את זיהוי הדוברים) |
+| סיכום מסמכים | ❌ | **✅** (רפואי, משפטי, עסקי, HR) |
+| קבצי בדיקה | ❌ | **✅** (אודיו + מסמכים) |
 
 ---
 
@@ -100,6 +102,12 @@ python3 localscribe.py --record
 # ציון מספר דוברים ידוע (משפר דיוק)
 python3 localscribe.py meeting.mp3 --speakers 3
 
+# סיכום מסמך בודד
+python3 localscribe.py --document report.pdf
+
+# סיכום כל המסמכים בתיקייה
+python3 localscribe.py --document-dir ./documents/
+
 # תפריט אינטראקטיבי
 python3 localscribe.py
 ```
@@ -110,8 +118,14 @@ python3 localscribe.py
 python3 quick_test.py
 ```
 
-### פורמטים נתמכים
+### פורמטי אודיו נתמכים
 mp3, wav, m4a, mp4, webm, ogg, flac, aac
+
+### פורמטי מסמכים נתמכים
+md, txt, pdf, docx, doc, rtf, html
+
+### סוגי מסמכים מזוהים אוטומטית
+🏥 רפואי | ⚖️ משפטי | 📋 פרוטוקול פגישה | 📊 דוח | 💡 הצעת פרויקט | 👥 HR/מדיניות | 📄 כללי
 
 ---
 
@@ -173,7 +187,24 @@ localscribe/
 ├── install.sh                  # סקריפט התקנה אוטומטי
 ├── requirements.txt            # תלויות Python
 ├── architecture.md             # מסמך ארכיטקטורה טכני
-└── README.md                   # המדריך הזה
+├── README.md                   # המדריך הזה
+└── test_data/                  # קבצי בדיקה
+    ├── README.md               # מדריך לקבצי הבדיקה
+    ├── download_test_audio.sh  # סקריפט הורדת אודיו לבדיקה
+    ├── audio/                  # קבצי אודיו בעברית
+    │   ├── hebrew_social_conversation.mp3  (2 דוברים, 4:30)
+    │   ├── hebrew_personal_matters.mp3     (2 דוברים, 3:00)
+    │   ├── hebrew_making_understood.mp3    (2 דוברים, 2:30)
+    │   └── hebrew_bible_genesis_ch*.mp3    (דובר יחיד, ~4:00)
+    └── documents/              # מסמכים לבדיקת סיכום
+        ├── meeting_summary_startup.md      (פגישת סטארטאפ)
+        ├── meeting_summary_board.md        (ישיבת דירקטוריון)
+        ├── medical_discharge_letter.md     (מכתב שחרור)
+        ├── medical_referral.md             (הפניה רפואית)
+        ├── legal_contract_summary.md       (חוזה שכירות)
+        ├── quarterly_report.md             (דוח רבעוני)
+        ├── project_proposal.md             (הצעת פרויקט)
+        └── hr_policy_update.md             (מדיניות HR)
 ```
 
 ---

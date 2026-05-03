@@ -1,91 +1,91 @@
-# פרוטוקול פגישת סטטוס - חברת DataFlow Technologies
+# Status Meeting — DataFlow Technologies
 
-**תאריך:** 28 באפריל 2026
-**שעה:** 10:00-11:30
-**מיקום:** חדר ישיבות ראשי, קומה 12, מגדל אלון תל אביב
-**משתתפים:** נועה כהן (CEO), יובל לוי (CTO), מיכל ברק (VP Product), אורי דוד (VP Sales), דנה שפירא (VP Marketing)
-
----
-
-## סדר יום
-
-1. סטטוס פיתוח - גרסה 3.0
-2. עדכון מכירות Q1
-3. תקציב שיווק Q2
-4. גיוס עובדים
-5. שונות
+**Date:** April 28, 2026
+**Time:** 10:00–11:30
+**Location:** Main conference room, Floor 12, Alon Tower, Tel Aviv
+**Participants:** Noa Cohen (CEO), Yuval Levi (CTO), Michal Barak (VP Product), Ori David (VP Sales), Dana Shapira (VP Marketing)
 
 ---
 
-## דיון
+## Agenda
 
-### 1. סטטוס פיתוח - גרסה 3.0
-
-יובל עדכן שצוות הפיתוח סיים את 85% מהפיצ'רים המתוכננים לגרסה 3.0. המודול החדש של ניתוח נתונים בזמן אמת עובד ועבר בדיקות יחידה בהצלחה. נותרו שני אתגרים עיקריים: אינטגרציה עם ה-API של Salesforce שדורשת עוד שבוע עבודה, ובעיית ביצועים בטעינת דשבורדים עם יותר מ-10,000 רשומות.
-
-מיכל ציינה שהלקוח הגדול ביותר שלנו, בנק לאומי, ביקש שהאינטגרציה עם Salesforce תהיה מוכנה עד ה-15 במאי. יובל אישר שזה אפשרי אם יקבל עוד מפתח בכיר לצוות.
-
-נועה החליטה לאשר העברת מפתח מצוות התשתיות לצוות האינטגרציות לתקופה של שבועיים.
-
-### 2. עדכון מכירות Q1
-
-אורי הציג את נתוני המכירות לרבעון הראשון:
-- הכנסות: 2.3 מיליון דולר (עלייה של 18% לעומת Q4)
-- לקוחות חדשים: 12 (יעד: 15)
-- שיעור חידוש: 94% (עלייה מ-91%)
-- ARR: 8.7 מיליון דולר
-
-אורי ציין שהפער ביעד הלקוחות החדשים נובע מעיכוב בסגירת 3 עסקאות גדולות שצפויות להיסגר בתחילת Q2. שתיים מהן כבר בשלב חתימת חוזה.
-
-נועה ביקשה שאורי יכין תחזית מעודכנת לשנה כולה עד סוף השבוע.
-
-### 3. תקציב שיווק Q2
-
-דנה הציגה את תוכנית השיווק לרבעון הבא:
-- תקציב מבוקש: 450,000 דולר (עלייה של 25% מ-Q1)
-- חלוקה: 40% דיגיטל, 30% כנסים ואירועים, 20% תוכן, 10% PR
-- כנס מרכזי: TechTLV 2026 (יוני) - בוט' בעלות 80,000 דולר
-
-נועה אישרה את התקציב בתנאי שדנה תציג ROI מדיד לכל ערוץ עד סוף Q2. דנה הסכימה והתחייבה להטמיע מערכת מדידה חדשה עד ה-10 במאי.
-
-### 4. גיוס עובדים
-
-מיכל עדכנה שיש 5 משרות פתוחות:
-- 2 מפתחי Full Stack (בכירים)
-- 1 מהנדס DevOps
-- 1 מעצב UX
-- 1 מנהל הצלחת לקוח
-
-עד כה התקבלו 47 קורות חיים, 8 מועמדים עברו סינון ראשוני, ו-3 ראיונות סופיים מתוכננים לשבוע הבא. מיכל ציינה שהקושי העיקרי הוא במציאת מפתחים בכירים עם ניסיון ב-Rust.
-
-נועה הציעה לשקול שימוש בחברת השמה חיצונית למשרות הפיתוח. יובל הסכים והתחייב לבדוק 3 חברות השמה ולחזור עם המלצה.
-
-### 5. שונות
-
-- נועה עדכנה שפגישה עם משקיעים פוטנציאליים מסדרה B מתוכננת ל-20 במאי. היא ביקשה מיובל ומיכל להכין מצגת טכנולוגית ומוצרית.
-- אורי ביקש לדון בשינוי מבנה העמלות לצוות המכירות. נועה קבעה פגישה נפרדת לנושא זה.
-- דנה הודיעה שהאתר החדש של החברה ייצא לאוויר ב-5 במאי.
+1. Development status — Version 3.0
+2. Q1 sales update
+3. Q2 marketing budget
+4. Hiring update
+5. Miscellaneous
 
 ---
 
-## החלטות
+## Discussion
 
-1. העברת מפתח מצוות תשתיות לצוות אינטגרציות לשבועיים
-2. אישור תקציב שיווק Q2 בסך 450,000 דולר
-3. בדיקת חברות השמה חיצוניות לגיוס מפתחים
-4. קביעת פגישה נפרדת לנושא מבנה עמלות
+### 1. Development Status — Version 3.0
 
-## משימות לביצוע
+Yuval reported that the development team has completed 85% of the planned features for version 3.0. The new real-time data analytics module is functional and has passed unit tests successfully. Two main challenges remain: the Salesforce API integration requires an additional week of work, and there is a performance issue when loading dashboards with more than 10,000 records.
 
-| משימה | אחראי | דדליין |
-|-------|--------|--------|
-| סיום אינטגרציית Salesforce | יובל לוי | 15/05/2026 |
-| תחזית מכירות שנתית מעודכנת | אורי דוד | 02/05/2026 |
-| הטמעת מערכת מדידת ROI שיווקי | דנה שפירא | 10/05/2026 |
-| בדיקת 3 חברות השמה | יובל לוי | 05/05/2026 |
-| הכנת מצגת למשקיעים | יובל + מיכל | 18/05/2026 |
-| השקת אתר חדש | דנה שפירא | 05/05/2026 |
+Michal noted that our largest client, Bank Leumi, has requested that the Salesforce integration be ready by May 15. Yuval confirmed this is achievable if he receives one additional senior developer for the team.
 
-## הפגישה הבאה
+Noa decided to approve transferring a developer from the infrastructure team to the integrations team for a two-week period.
 
-5 במאי 2026, 10:00, חדר ישיבות ראשי
+### 2. Q1 Sales Update
+
+Ori presented the Q1 sales figures:
+- Revenue: $2.3 million (18% increase over Q4)
+- New customers: 12 (target: 15)
+- Renewal rate: 94% (up from 91%)
+- ARR: $8.7 million
+
+Ori noted that the gap in new customer acquisition is due to delays in closing 3 large deals expected to close at the beginning of Q2. Two of them are already at the contract signing stage.
+
+Noa requested that Ori prepare an updated full-year forecast by end of week.
+
+### 3. Q2 Marketing Budget
+
+Dana presented the marketing plan for next quarter:
+- Requested budget: $450,000 (25% increase from Q1)
+- Allocation: 40% digital, 30% conferences and events, 20% content, 10% PR
+- Key conference: TechTLV 2026 (June) — booth at a cost of $80,000
+
+Noa approved the budget on the condition that Dana presents measurable ROI for each channel by end of Q2. Dana agreed and committed to implementing a new measurement system by May 10.
+
+### 4. Hiring Update
+
+Michal reported 5 open positions:
+- 2 Senior Full-Stack Developers
+- 1 DevOps Engineer
+- 1 UX Designer
+- 1 Customer Success Manager
+
+So far, 47 resumes have been received, 8 candidates passed initial screening, and 3 final interviews are scheduled for next week. Michal noted that the main difficulty is finding senior developers with Rust experience.
+
+Noa suggested considering an external recruiting agency for the development positions. Yuval agreed and committed to evaluating 3 agencies and returning with a recommendation.
+
+### 5. Miscellaneous
+
+- Noa announced that a meeting with potential Series B investors is scheduled for May 20. She asked Yuval and Michal to prepare a technology and product presentation.
+- Ori requested a discussion about restructuring the sales team commission model. Noa scheduled a separate meeting for this topic.
+- Dana announced that the company's new website will go live on May 5.
+
+---
+
+## Decisions
+
+1. Transfer a developer from infrastructure to integrations team for two weeks
+2. Approve Q2 marketing budget of $450,000
+3. Evaluate external recruiting agencies for developer hiring
+4. Schedule a separate meeting to discuss commission structure
+
+## Action Items
+
+| Task | Owner | Deadline |
+|------|-------|----------|
+| Complete Salesforce integration | Yuval Levi | May 15, 2026 |
+| Updated annual sales forecast | Ori David | May 2, 2026 |
+| Implement marketing ROI measurement system | Dana Shapira | May 10, 2026 |
+| Evaluate 3 recruiting agencies | Yuval Levi | May 5, 2026 |
+| Prepare investor presentation | Yuval + Michal | May 18, 2026 |
+| Launch new website | Dana Shapira | May 5, 2026 |
+
+## Next Meeting
+
+May 5, 2026, 10:00, Main conference room

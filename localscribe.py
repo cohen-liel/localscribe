@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """
-LocalScribe - Full Pipeline: Transcription + Speaker Diarization + Summarization
+LocalScribe — Full Pipeline: Transcription + Speaker Diarization + Summarization
 =================================================================================
-תמלול פגישות בעברית עם זיהוי דוברים וסיכום חכם - הכל מקומי על המאק שלך.
-כולל גם יכולת סיכום מסמכים טקסטואליים (רפואיים, משפטיים, עסקיים ועוד).
+Transcribe Hebrew meetings with speaker identification and smart summarization —
+100% local on your Mac. Also supports intelligent document summarization.
 
-Pipeline (Audio):
-1. Speaker Diarization (pyannote.audio) → מי דיבר ומתי
-2. Hebrew ASR (mlx-whisper + ivrit.ai Turbo) → תמלול עברית מדויק
-3. Summarization (Ollama + Qwen3) → סיכום + החלטות + Action Items
+Audio Pipeline:
+1. Speaker Diarization (pyannote.audio) → who spoke and when
+2. Hebrew ASR (mlx-whisper + ivrit.ai Turbo) → accurate Hebrew transcription
+3. Summarization (Ollama + Qwen3) → summary + decisions + action items
 
-Pipeline (Document):
+Document Pipeline:
 1. Read & Parse document (Markdown, TXT, PDF, DOCX)
 2. Detect document type (medical, legal, meeting, report, etc.)
-3. Summarization (Ollama + Qwen3) → סיכום מותאם לסוג המסמך
+3. Summarization (Ollama + Qwen3) → type-specific structured summary
 
 Requirements:
 - Mac with Apple Silicon (M1/M2/M3/M4)
 - Python 3.10+
 - Ollama (for summarization)
-- HuggingFace token (for pyannote, free) - only for audio mode
+- HuggingFace token (for pyannote, free) — only for audio mode
 
 Usage:
     # Audio mode
@@ -60,7 +60,7 @@ HF_TOKEN_PATH = Path.home() / ".localscribe_hf_token"
 # Diarization settings
 MIN_SPEAKERS = 2
 MAX_SPEAKERS = 10
-MIN_SEGMENT_DURATION = 0.5  # seconds - ignore very short segments
+MIN_SEGMENT_DURATION = 0.5  # seconds — ignore very short segments
 
 # Document settings
 SUPPORTED_DOC_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".doc", ".rtf", ".html"}
@@ -71,13 +71,13 @@ MAX_DOC_CHARS = 50000  # Maximum characters to send to LLM
 # Dependency Management
 # ============================================================
 def check_and_install(package_name: str, import_name: str = None):
-    """Check if a package is installed, install if not."""
+    """Check if a package is installed; install it if missing."""
     import_name = import_name or package_name
     try:
         __import__(import_name)
         return True
     except ImportError:
-        print(f"  ⬇️  מתקין {package_name}...")
+        print(f"  Installing {package_name}...")
         subprocess.run(
             [sys.executable, "-m", "pip", "install", package_name, "-q"],
             check=True,
@@ -87,7 +87,7 @@ def check_and_install(package_name: str, import_name: str = None):
 
 
 def get_hf_token() -> Optional[str]:
-    """Get HuggingFace token for pyannote access."""
+    """Retrieve HuggingFace token from environment, saved file, or CLI login."""
     # Check environment variable first
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
     if token:
@@ -112,74 +112,74 @@ def get_hf_token() -> Optional[str]:
 def setup_hf_token():
     """Interactive setup for HuggingFace token."""
     print()
-    print("╔══════════════════════════════════════════════════════════════╗")
-    print("║  נדרש HuggingFace Token (חינמי) עבור מודל זיהוי הדוברים    ║")
-    print("╚══════════════════════════════════════════════════════════════╝")
+    print("+" + "=" * 62 + "+")
+    print("|  HuggingFace Token Required (free) for Speaker Diarization   |")
+    print("+" + "=" * 62 + "+")
     print()
-    print("  📋 הוראות:")
-    print("  1. היכנס ל: https://huggingface.co/settings/tokens")
-    print("  2. צור token חדש (Read access מספיק)")
-    print("  3. קבל את תנאי השימוש של pyannote:")
+    print("  Instructions:")
+    print("  1. Go to: https://huggingface.co/settings/tokens")
+    print("  2. Create a new token (Read access is sufficient)")
+    print("  3. Accept the pyannote license terms:")
     print("     https://huggingface.co/pyannote/speaker-diarization-3.1")
     print()
-    token = input("  הדבק את ה-Token כאן: ").strip()
+    token = input("  Paste your token here: ").strip()
     if token:
         HF_TOKEN_PATH.write_text(token)
         HF_TOKEN_PATH.chmod(0o600)
-        print("  ✅ Token נשמר!")
+        print("  Token saved!")
         return token
     return None
 
 
 def ensure_dependencies(mode: str = "audio"):
     """Verify all dependencies are available."""
-    print("🔍 בודק תלויות...")
+    print("Checking dependencies...")
 
     hf_token = None
 
     if mode == "audio":
         # Core packages for audio mode
         check_and_install("mlx-whisper", "mlx_whisper")
-        print("  ✅ mlx-whisper (תמלול)")
+        print("  [OK] mlx-whisper (transcription)")
 
         check_and_install("torch", "torch")
         check_and_install("torchaudio", "torchaudio")
         check_and_install("pyannote.audio", "pyannote")
-        print("  ✅ pyannote.audio (זיהוי דוברים)")
+        print("  [OK] pyannote.audio (speaker diarization)")
 
         check_and_install("pydub", "pydub")
-        print("  ✅ pydub (עיבוד אודיו)")
+        print("  [OK] pydub (audio processing)")
 
         # Check HuggingFace token
         hf_token = get_hf_token()
         if not hf_token:
             hf_token = setup_hf_token()
             if not hf_token:
-                print("  ❌ לא ניתן להמשיך ללא HuggingFace Token")
+                print("  [ERROR] Cannot continue without HuggingFace Token")
                 sys.exit(1)
-        print("  ✅ HuggingFace Token")
+        print("  [OK] HuggingFace Token")
 
         # Check ffmpeg
         result = subprocess.run(["which", "ffmpeg"], capture_output=True, text=True)
         if result.returncode != 0:
-            print("  ⚠️  ffmpeg לא מותקן - התקן עם: brew install ffmpeg")
+            print("  [WARN] ffmpeg not installed — install with: brew install ffmpeg")
         else:
-            print("  ✅ ffmpeg")
+            print("  [OK] ffmpeg")
 
     # Check Ollama (needed for both modes)
     result = subprocess.run(["which", "ollama"], capture_output=True, text=True)
     if result.returncode != 0:
-        print("  ❌ Ollama לא מותקן!")
-        print("     התקן עם: brew install ollama")
+        print("  [ERROR] Ollama not installed!")
+        print("          Install with: brew install ollama")
         sys.exit(1)
-    print("  ✅ Ollama (סיכום)")
+    print("  [OK] Ollama (summarization)")
 
     # Check Ollama model
     result = subprocess.run(["ollama", "list"], capture_output=True, text=True)
     if OLLAMA_MODEL.split(":")[0] not in result.stdout:
-        print(f"  ⬇️  מוריד מודל {OLLAMA_MODEL}...")
+        print(f"  Downloading model {OLLAMA_MODEL}...")
         subprocess.run(["ollama", "pull", OLLAMA_MODEL], check=True)
-    print(f"  ✅ מודל {OLLAMA_MODEL} מוכן")
+    print(f"  [OK] Model {OLLAMA_MODEL} ready")
 
     print()
     return hf_token
@@ -191,14 +191,14 @@ def ensure_dependencies(mode: str = "audio"):
 def run_diarization(audio_path: str, hf_token: str, num_speakers: int = None):
     """
     Run speaker diarization using pyannote.audio.
-    Returns a list of segments: [(start, end, speaker_label), ...]
+    Returns a list of segments: [{"start", "end", "speaker", "duration"}, ...]
     """
     from pyannote.audio import Pipeline
     import torch
 
-    print("🎭 שלב 1: זיהוי דוברים (Speaker Diarization)...")
-    print(f"   קובץ: {Path(audio_path).name}")
-    print("   (הפעם הראשונה תיקח יותר זמן - הורדת המודל)")
+    print("Stage 1: Speaker Diarization (pyannote.audio)...")
+    print(f"   File: {Path(audio_path).name}")
+    print("   (First run will take longer — downloading model)")
     print()
 
     start_time = time.time()
@@ -212,8 +212,8 @@ def run_diarization(audio_path: str, hf_token: str, num_speakers: int = None):
     # Use MPS (Metal) if available on Apple Silicon
     if torch.backends.mps.is_available():
         pipeline.to(torch.device("mps"))
-        print("   🚀 משתמש ב-Apple Metal GPU")
-    
+        print("   Using Apple Metal GPU for acceleration")
+
     # Run diarization
     diarization_params = {}
     if num_speakers:
@@ -238,8 +238,8 @@ def run_diarization(audio_path: str, hf_token: str, num_speakers: int = None):
     elapsed = time.time() - start_time
     unique_speakers = set(seg["speaker"] for seg in segments)
 
-    print(f"   ✅ זיהוי דוברים הושלם ב-{elapsed:.1f} שניות")
-    print(f"   📊 זוהו {len(unique_speakers)} דוברים, {len(segments)} קטעי דיבור")
+    print(f"   Diarization complete in {elapsed:.1f}s")
+    print(f"   Detected {len(unique_speakers)} speakers, {len(segments)} speech segments")
     print()
 
     return segments
@@ -250,15 +250,15 @@ def run_diarization(audio_path: str, hf_token: str, num_speakers: int = None):
 # ============================================================
 def transcribe_segments(audio_path: str, segments: list):
     """
-    Transcribe each diarized segment using ivrit.ai Whisper model.
+    Transcribe each diarized segment using the ivrit.ai Whisper model.
     Returns segments enriched with transcription text.
     """
     import mlx_whisper
     from pydub import AudioSegment
 
-    print("📝 שלב 2: תמלול עברית (ivrit.ai Turbo)...")
-    print(f"   מודל: {WHISPER_MODEL}")
-    print(f"   {len(segments)} קטעים לתמלול...")
+    print("Stage 2: Hebrew Transcription (ivrit.ai Turbo)...")
+    print(f"   Model: {WHISPER_MODEL}")
+    print(f"   Segments to transcribe: {len(segments)}")
     print()
 
     start_time = time.time()
@@ -278,7 +278,7 @@ def transcribe_segments(audio_path: str, segments: list):
         end_ms = int(seg["end"] * 1000)
         segment_audio = audio[start_ms:end_ms]
 
-        # Save to temp file for whisper
+        # Save to temp file for Whisper
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             segment_audio.export(tmp.name, format="wav")
             tmp_path = tmp.name
@@ -293,7 +293,7 @@ def transcribe_segments(audio_path: str, segments: list):
             )
             text = result["text"].strip()
         except Exception as e:
-            text = f"[שגיאת תמלול: {e}]"
+            text = f"[Transcription error: {e}]"
         finally:
             os.unlink(tmp_path)
 
@@ -308,7 +308,7 @@ def transcribe_segments(audio_path: str, segments: list):
         print(f"\r   [{i+1}/{total}] {progress:.0f}% ", end="", flush=True)
 
     elapsed = time.time() - start_time
-    print(f"\n   ✅ תמלול הושלם ב-{elapsed:.1f} שניות")
+    print(f"\n   Transcription complete in {elapsed:.1f}s")
     print()
 
     return transcribed_segments
@@ -343,7 +343,6 @@ def merge_adjacent_segments(segments: list, max_gap: float = 1.5) -> list:
 # ============================================================
 def format_transcript_with_speakers(segments: list) -> str:
     """Format the transcribed segments into a readable transcript with speaker labels."""
-    # Create friendly speaker names
     speaker_map = {}
     speaker_counter = 1
 
@@ -351,7 +350,7 @@ def format_transcript_with_speakers(segments: list) -> str:
     for seg in segments:
         speaker = seg["speaker"]
         if speaker not in speaker_map:
-            speaker_map[speaker] = f"דובר {speaker_counter}"
+            speaker_map[speaker] = f"Speaker {speaker_counter}"
             speaker_counter += 1
 
         friendly_name = speaker_map[speaker]
@@ -362,7 +361,7 @@ def format_transcript_with_speakers(segments: list) -> str:
 
 
 def format_timestamp(seconds: float) -> str:
-    """Format seconds to MM:SS."""
+    """Format seconds as MM:SS."""
     minutes = int(seconds // 60)
     secs = int(seconds % 60)
     return f"{minutes:02d}:{secs:02d}"
@@ -370,42 +369,44 @@ def format_timestamp(seconds: float) -> str:
 
 def summarize_with_speakers(transcript: str, num_speakers: int):
     """
-    Summarize the meeting transcript using local LLM (Ollama).
-    The prompt is designed to leverage speaker information.
+    Summarize the meeting transcript using a local LLM (Ollama).
+    The prompt leverages speaker information for better summaries.
     """
-    print(f"🤖 שלב 3: סיכום חכם ({OLLAMA_MODEL})...")
+    print(f"Stage 3: Smart Summarization ({OLLAMA_MODEL})...")
     print()
 
     prompt = f"""/no_think
-אתה עוזר מקצועי לסיכום פגישות בעברית. קיבלת תמלול של פגישה עם {num_speakers} משתתפים.
-כל דובר מסומן (דובר 1, דובר 2, וכו').
+You are a professional meeting summarizer. You received a transcript of a meeting in Hebrew with {num_speakers} participants.
+Each speaker is labeled (Speaker 1, Speaker 2, etc.).
 
-עליך לספק:
+The transcript is in Hebrew. Provide your summary in Hebrew.
 
-## כותרת
-שם קצר וממוקד לפגישה (שורה אחת)
+Provide the following:
 
-## סיכום
-3-5 משפטים שמסכמים את עיקרי הפגישה
+## Title
+A short, focused name for the meeting (one line)
 
-## משימות לביצוע (Action Items)
-רשימה ממוספרת. לכל משימה ציין:
-- מי אחראי (לפי מספר הדובר)
-- מה צריך לעשות
-- עד מתי (אם צוין)
+## Summary
+3-5 sentences summarizing the key points of the meeting
 
-## החלטות שהתקבלו
-רשימה של החלטות שהתקבלו בפגישה (אם יש)
+## Action Items
+A numbered list. For each item include:
+- Who is responsible (by speaker number)
+- What needs to be done
+- Deadline (if mentioned)
 
-## נקודות פתוחות
-נושאים שעלו אך לא הוכרעו (אם יש)
+## Decisions Made
+A list of decisions made during the meeting (if any)
+
+## Open Issues
+Topics raised but not resolved (if any)
 
 ---
-התמלול:
+Transcript:
 {transcript}
 ---
 
-סכם בעברית בצורה מקצועית ומסודרת:"""
+Summarize professionally and clearly:"""
 
     start_time = time.time()
 
@@ -423,7 +424,7 @@ def summarize_with_speakers(transcript: str, num_speakers: int):
     if "<think>" in summary:
         summary = re.sub(r"<think>.*?</think>", "", summary, flags=re.DOTALL).strip()
 
-    print(f"   ✅ סיכום הושלם ב-{elapsed:.1f} שניות")
+    print(f"   Summarization complete in {elapsed:.1f}s")
     print()
 
     return summary
@@ -440,12 +441,13 @@ def detect_document_type(text: str, filename: str = "") -> str:
     text_lower = text.lower()
     fname_lower = filename.lower()
 
-    # Medical indicators
+    # Medical indicators (Hebrew + English)
     medical_keywords = [
         "מכתב שחרור", "הפניה רפואית", "אבחנה", "תרופות", "מטופל",
         "ניתוח", "אשפוז", "מרפאה", "בית חולים", "רופא", "מחלקה",
         "תופעות לוואי", "מינון", "בדיקות דם", "צילום רנטגן",
         "discharge", "medical", "clinical", "patient", "diagnosis",
+        "medication", "prescription", "referral", "hospital",
     ]
     medical_score = sum(1 for kw in medical_keywords if kw in text_lower)
 
@@ -454,6 +456,7 @@ def detect_document_type(text: str, filename: str = "") -> str:
         "חוזה", "הסכם", "שכירות", "משכיר", "שוכר", "ערבות",
         "סעיף", "תנאי", "עו\"ד", "חתימה", "פיצוי", "ביטול",
         "contract", "agreement", "legal", "clause", "liability",
+        "tenant", "landlord", "lease", "indemnity",
     ]
     legal_score = sum(1 for kw in legal_keywords if kw in text_lower)
 
@@ -522,186 +525,187 @@ def get_document_prompt(doc_type: str, text: str) -> str:
     """Generate a summarization prompt tailored to the document type."""
 
     type_labels = {
-        "medical": "רפואי",
-        "legal": "משפטי",
-        "meeting": "פרוטוקול פגישה",
-        "report": "דוח",
-        "proposal": "הצעת פרויקט",
-        "hr": "מדיניות / משאבי אנוש",
-        "general": "כללי",
+        "medical": "Medical",
+        "legal": "Legal",
+        "meeting": "Meeting Minutes",
+        "report": "Report",
+        "proposal": "Project Proposal",
+        "hr": "HR / Policy",
+        "general": "General",
     }
 
-    type_label = type_labels.get(doc_type, "כללי")
+    type_label = type_labels.get(doc_type, "General")
 
-    # Base prompt structure
+    # Base prompt
     base = f"""/no_think
-אתה עוזר מקצועי לסיכום מסמכים בעברית. קיבלת מסמך מסוג: **{type_label}**.
+You are a professional document summarizer. You received a document of type: **{type_label}**.
+The document may be in Hebrew or English. Provide your summary in the same language as the document.
 
 """
 
     # Type-specific instructions
     if doc_type == "medical":
-        instructions = """עליך לספק סיכום רפואי מובנה הכולל:
+        instructions = """Provide a structured medical summary including:
 
-## סוג המסמך
-(מכתב שחרור / הפניה / תוצאות בדיקה / אחר)
+## Document Type
+(Discharge letter / Referral / Test results / Other)
 
-## סיכום קליני
-3-5 משפטים שמסכמים את המצב הרפואי, האבחנה, והטיפול
+## Clinical Summary
+3-5 sentences summarizing the medical situation, diagnosis, and treatment
 
-## אבחנות
-רשימת האבחנות שצוינו במסמך
+## Diagnoses
+List of diagnoses mentioned in the document
 
-## טיפולים ותרופות
-רשימת התרופות, המינונים, ומשך הטיפול
+## Treatments & Medications
+List of medications, dosages, and treatment duration
 
-## המלצות ומעקב
-הנחיות למטופל, ביקורי מעקב, ובדיקות נדרשות
+## Recommendations & Follow-up
+Instructions for the patient, follow-up visits, and required tests
 
-## דגשים חשובים
-מתי לפנות לרופא, סימני אזהרה, הגבלות"""
+## Important Notes
+When to seek medical attention, warning signs, restrictions"""
 
     elif doc_type == "legal":
-        instructions = """עליך לספק סיכום משפטי מובנה הכולל:
+        instructions = """Provide a structured legal summary including:
 
-## סוג המסמך
-(חוזה / הסכם / ייפוי כוח / אחר)
+## Document Type
+(Contract / Agreement / Power of Attorney / Other)
 
-## צדדים
-הצדדים להסכם ופרטיהם
+## Parties
+The parties to the agreement and their details
 
-## סיכום עיקרי
-3-5 משפטים שמסכמים את עיקרי ההסכם
+## Executive Summary
+3-5 sentences summarizing the key terms of the agreement
 
-## תנאים עיקריים
-הסעיפים והתנאים המרכזיים
+## Key Terms & Clauses
+The main clauses and conditions
 
-## התחייבויות כספיות
-סכומים, מועדי תשלום, ערבויות
+## Financial Obligations
+Amounts, payment schedules, guarantees
 
-## תאריכים חשובים
-תקופת ההסכם, דדליינים, תנאי ביטול
+## Important Dates
+Agreement period, deadlines, termination conditions
 
-## הערות ודגשים
-סעיפים מיוחדים, סיכונים, נקודות לתשומת לב"""
+## Notes & Risks
+Special clauses, risks, points of attention"""
 
     elif doc_type == "meeting":
-        instructions = """עליך לספק סיכום פגישה מובנה הכולל:
+        instructions = """Provide a structured meeting summary including:
 
-## כותרת הפגישה
-שם קצר וממוקד
+## Meeting Title
+A short, focused name
 
-## סיכום
-3-5 משפטים שמסכמים את עיקרי הפגישה
+## Summary
+3-5 sentences summarizing the key points of the meeting
 
-## החלטות שהתקבלו
-רשימה ממוספרת של כל ההחלטות
+## Decisions Made
+A numbered list of all decisions
 
-## משימות לביצוע (Action Items)
-לכל משימה: אחראי, תיאור, דדליין
+## Action Items
+For each item: responsible person, description, deadline
 
-## נקודות פתוחות
-נושאים שעלו אך לא הוכרעו
+## Open Issues
+Topics raised but not resolved
 
-## הפגישה הבאה
-תאריך ונושאים מתוכננים (אם צוין)"""
+## Next Meeting
+Date and planned topics (if mentioned)"""
 
     elif doc_type == "report":
-        instructions = """עליך לספק סיכום דוח מובנה הכולל:
+        instructions = """Provide a structured report summary including:
 
-## כותרת הדוח
-שם קצר וממוקד
+## Report Title
+A short, focused name
 
-## תקציר מנהלים
-3-5 משפטים שמסכמים את עיקרי הדוח
+## Executive Summary
+3-5 sentences summarizing the key findings
 
-## נתונים מרכזיים
-טבלה או רשימה של המספרים והמדדים החשובים
+## Key Metrics
+A list of the most important numbers and KPIs
 
-## מגמות ותובנות
-ניתוח המגמות העיקריות שעולות מהנתונים
+## Trends & Insights
+Analysis of the main trends emerging from the data
 
-## אתגרים וסיכונים
-בעיות שזוהו ודרכי התמודדות
+## Challenges & Risks
+Issues identified and mitigation strategies
 
-## המלצות / תחזית
-צעדים מומלצים או תחזית לתקופה הבאה"""
+## Recommendations / Forecast
+Recommended next steps or forecast for the next period"""
 
     elif doc_type == "proposal":
-        instructions = """עליך לספק סיכום הצעה מובנה הכולל:
+        instructions = """Provide a structured proposal summary including:
 
-## שם הפרויקט
-שם קצר וממוקד
+## Project Name
+A short, focused name
 
-## סיכום
-3-5 משפטים שמסכמים את ההצעה
+## Summary
+3-5 sentences summarizing the proposal
 
-## מטרות ויעדים
-מה הפרויקט אמור להשיג
+## Objectives & Goals
+What the project aims to achieve
 
-## היקף ולוח זמנים
-שלבים עיקריים ותאריכי יעד
+## Scope & Timeline
+Key phases and target dates
 
-## תקציב
-סיכום העלויות הצפויות
+## Budget
+Summary of expected costs
 
-## סיכונים
-סיכונים עיקריים ודרכי התמודדות
+## Risks
+Key risks and mitigation strategies
 
-## ROI / תועלות צפויות
-ההחזר הצפוי על ההשקעה"""
+## Expected ROI / Benefits
+Expected return on investment"""
 
     elif doc_type == "hr":
-        instructions = """עליך לספק סיכום מדיניות מובנה הכולל:
+        instructions = """Provide a structured policy summary including:
 
-## שם המדיניות
-שם קצר וממוקד
+## Policy Name
+A short, focused name
 
-## סיכום
-3-5 משפטים שמסכמים את עיקרי המדיניות
+## Summary
+3-5 sentences summarizing the key points of the policy
 
-## עקרונות מנחים
-העקרונות המרכזיים שעליהם מבוססת המדיניות
+## Guiding Principles
+The core principles underlying the policy
 
-## כללים ונהלים עיקריים
-הכללים המרכזיים שהעובדים צריכים לדעת
+## Key Rules & Procedures
+The main rules employees need to know
 
-## שינויים מהמדיניות הקודמת
-מה חדש או שונה (אם רלוונטי)
+## Changes from Previous Policy
+What is new or different (if relevant)
 
-## השפעה על העובדים
-איך המדיניות משפיעה על העובדים בפועל"""
+## Impact on Employees
+How the policy affects employees in practice"""
 
     else:  # general
-        instructions = """עליך לספק סיכום מובנה הכולל:
+        instructions = """Provide a structured summary including:
 
-## כותרת
-שם קצר וממוקד למסמך
+## Title
+A short, focused name for the document
 
-## סיכום
-3-5 משפטים שמסכמים את עיקרי המסמך
+## Summary
+3-5 sentences summarizing the key points
 
-## נקודות מרכזיות
-הנקודות החשובות ביותר במסמך
+## Key Points
+The most important points in the document
 
-## פרטים חשובים
-מספרים, תאריכים, שמות, או נתונים חשובים
+## Important Details
+Numbers, dates, names, or data worth noting
 
-## מסקנות / המלצות
-מסקנות או המלצות שעולות מהמסמך (אם יש)"""
+## Conclusions / Recommendations
+Conclusions or recommendations from the document (if any)"""
 
     # Truncate text if too long
     if len(text) > MAX_DOC_CHARS:
-        text = text[:MAX_DOC_CHARS] + "\n\n[... המסמך קוצר בשל אורכו ...]"
+        text = text[:MAX_DOC_CHARS] + "\n\n[... Document truncated due to length ...]"
 
     return f"""{base}{instructions}
 
 ---
-המסמך:
+Document:
 {text}
 ---
 
-סכם בעברית בצורה מקצועית ומסודרת:"""
+Summarize professionally and clearly:"""
 
 
 def read_document(file_path: str) -> str:
@@ -714,7 +718,6 @@ def read_document(file_path: str) -> str:
 
     elif ext == ".pdf":
         try:
-            # Try pdfplumber first
             check_and_install("pdfplumber")
             import pdfplumber
             text_parts = []
@@ -725,7 +728,7 @@ def read_document(file_path: str) -> str:
                         text_parts.append(page_text)
             return "\n\n".join(text_parts)
         except Exception:
-            # Fallback to subprocess (pdftotext)
+            # Fallback to pdftotext CLI
             try:
                 result = subprocess.run(
                     ["pdftotext", str(path), "-"],
@@ -733,7 +736,7 @@ def read_document(file_path: str) -> str:
                 )
                 return result.stdout
             except Exception as e:
-                raise RuntimeError(f"לא ניתן לקרוא PDF: {e}")
+                raise RuntimeError(f"Cannot read PDF: {e}")
 
     elif ext in {".docx", ".doc"}:
         try:
@@ -742,36 +745,37 @@ def read_document(file_path: str) -> str:
             doc = docx.Document(str(path))
             return "\n\n".join(para.text for para in doc.paragraphs if para.text.strip())
         except Exception as e:
-            raise RuntimeError(f"לא ניתן לקרוא DOCX: {e}")
+            raise RuntimeError(f"Cannot read DOCX: {e}")
 
     elif ext == ".html":
         try:
             from html.parser import HTMLParser
             html_content = path.read_text(encoding="utf-8")
-            # Simple HTML to text
+
             class HTMLTextExtractor(HTMLParser):
                 def __init__(self):
                     super().__init__()
                     self.result = []
                 def handle_data(self, data):
                     self.result.append(data)
+
             extractor = HTMLTextExtractor()
             extractor.feed(html_content)
             return " ".join(extractor.result)
         except Exception as e:
-            raise RuntimeError(f"לא ניתן לקרוא HTML: {e}")
+            raise RuntimeError(f"Cannot read HTML: {e}")
 
     else:
         # Try reading as plain text
         try:
             return path.read_text(encoding="utf-8")
         except Exception:
-            raise RuntimeError(f"פורמט לא נתמך: {ext}")
+            raise RuntimeError(f"Unsupported format: {ext}")
 
 
 def summarize_document(text: str, doc_type: str):
-    """Summarize a document using local LLM (Ollama)."""
-    print(f"🤖 מסכם מסמך ({OLLAMA_MODEL})...")
+    """Summarize a document using a local LLM (Ollama)."""
+    print(f"Summarizing document ({OLLAMA_MODEL})...")
     print()
 
     prompt = get_document_prompt(doc_type, text)
@@ -792,7 +796,7 @@ def summarize_document(text: str, doc_type: str):
     if "<think>" in summary:
         summary = re.sub(r"<think>.*?</think>", "", summary, flags=re.DOTALL).strip()
 
-    print(f"   ✅ סיכום הושלם ב-{elapsed:.1f} שניות")
+    print(f"   Summarization complete in {elapsed:.1f}s")
     print()
 
     return summary
@@ -800,50 +804,50 @@ def summarize_document(text: str, doc_type: str):
 
 def process_document(file_path: str):
     """
-    Full document processing pipeline: Read → Detect Type → Summarize.
+    Full document processing pipeline: Read -> Detect Type -> Summarize.
     """
     print()
-    print("╔══════════════════════════════════════════════════════════════╗")
-    print("║           LocalScribe - סיכום מסמך                          ║")
-    print("║   📄 קריאה → 🔍 זיהוי סוג → 🤖 סיכום חכם                   ║")
-    print("╚══════════════════════════════════════════════════════════════╝")
+    print("+" + "=" * 62 + "+")
+    print("|           LocalScribe — Document Summarization               |")
+    print("|   Read -> Detect Type -> Smart Summary                       |")
+    print("+" + "=" * 62 + "+")
     print()
-    print(f"📂 קובץ: {file_path}")
+    print(f"File: {file_path}")
     print()
 
     total_start = time.time()
 
-    # Read document
-    print("📄 שלב 1: קריאת המסמך...")
+    # Stage 1: Read document
+    print("Stage 1: Reading document...")
     try:
         text = read_document(file_path)
     except Exception as e:
-        print(f"❌ שגיאה בקריאת הקובץ: {e}")
+        print(f"[ERROR] Failed to read file: {e}")
         return None
 
     if not text or len(text.strip()) < 50:
-        print("❌ המסמך ריק או קצר מדי")
+        print("[ERROR] Document is empty or too short")
         return None
 
-    print(f"   ✅ נקראו {len(text):,} תווים")
+    print(f"   Read {len(text):,} characters")
     print()
 
-    # Detect document type
-    print("🔍 שלב 2: זיהוי סוג המסמך...")
+    # Stage 2: Detect document type
+    print("Stage 2: Detecting document type...")
     doc_type = detect_document_type(text, file_path)
     type_labels = {
-        "medical": "🏥 רפואי",
-        "legal": "⚖️ משפטי",
-        "meeting": "📋 פרוטוקול פגישה",
-        "report": "📊 דוח",
-        "proposal": "💡 הצעת פרויקט",
-        "hr": "👥 מדיניות / משאבי אנוש",
-        "general": "📄 כללי",
+        "medical": "Medical",
+        "legal": "Legal",
+        "meeting": "Meeting Minutes",
+        "report": "Report",
+        "proposal": "Project Proposal",
+        "hr": "HR / Policy",
+        "general": "General",
     }
-    print(f"   ✅ סוג: {type_labels.get(doc_type, doc_type)}")
+    print(f"   Detected type: {type_labels.get(doc_type, doc_type)}")
     print()
 
-    # Summarize
+    # Stage 3: Summarize
     summary = summarize_document(text, doc_type)
 
     total_elapsed = time.time() - total_start
@@ -854,12 +858,12 @@ def process_document(file_path: str):
     base_name = Path(file_path).stem
 
     md_file = OUTPUT_DIR / f"doc_{base_name}_{timestamp}.md"
-    md_content = f"""# סיכום מסמך - LocalScribe
+    md_content = f"""# Document Summary — LocalScribe
 
-**תאריך עיבוד:** {datetime.now().strftime("%d/%m/%Y %H:%M")}
-**קובץ מקור:** {Path(file_path).name}
-**סוג מסמך:** {type_labels.get(doc_type, doc_type)}
-**אורך מקורי:** {len(text):,} תווים
+**Processed:** {datetime.now().strftime("%Y-%m-%d %H:%M")}
+**Source file:** {Path(file_path).name}
+**Document type:** {type_labels.get(doc_type, doc_type)}
+**Original length:** {len(text):,} characters
 
 ---
 
@@ -881,21 +885,21 @@ def process_document(file_path: str):
     }
     json_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"⏱️  זמן עיבוד כולל: {total_elapsed:.1f} שניות")
+    print(f"Total processing time: {total_elapsed:.1f}s")
     print()
-    print(f"💾 תוצאות נשמרו:")
-    print(f"   📄 Markdown: {md_file}")
-    print(f"   📊 JSON:     {json_file}")
+    print(f"Results saved:")
+    print(f"   Markdown: {md_file}")
+    print(f"   JSON:     {json_file}")
     print()
 
     # Display summary
-    print("═" * 60)
-    print(f"📋 סיכום המסמך ({type_labels.get(doc_type, doc_type)}):")
-    print("═" * 60)
+    print("=" * 60)
+    print(f"Document Summary ({type_labels.get(doc_type, doc_type)}):")
+    print("=" * 60)
     print()
     print(summary)
     print()
-    print("═" * 60)
+    print("=" * 60)
 
     return md_file
 
@@ -904,15 +908,15 @@ def process_document_dir(dir_path: str):
     """Process all documents in a directory."""
     path = Path(dir_path)
     if not path.is_dir():
-        print(f"❌ התיקייה לא נמצאה: {dir_path}")
+        print(f"[ERROR] Directory not found: {dir_path}")
         return
 
     files = [f for f in path.iterdir() if f.suffix.lower() in SUPPORTED_DOC_EXTENSIONS]
     if not files:
-        print(f"❌ לא נמצאו מסמכים נתמכים בתיקייה: {dir_path}")
+        print(f"[ERROR] No supported documents found in: {dir_path}")
         return
 
-    print(f"📂 נמצאו {len(files)} מסמכים בתיקייה")
+    print(f"Found {len(files)} documents in directory")
     print()
 
     results = []
@@ -925,10 +929,10 @@ def process_document_dir(dir_path: str):
             results.append(result)
         print()
 
-    print(f"\n{'═' * 60}")
-    print(f"✅ סוכמו {len(results)} מתוך {len(files)} מסמכים")
-    print(f"📂 התוצאות נשמרו ב: {OUTPUT_DIR}")
-    print(f"{'═' * 60}")
+    print(f"\n{'=' * 60}")
+    print(f"Summarized {len(results)} of {len(files)} documents")
+    print(f"Results saved to: {OUTPUT_DIR}")
+    print(f"{'=' * 60}")
 
 
 # ============================================================
@@ -944,14 +948,14 @@ def save_results(audio_path: str, segments: list, transcript: str, summary: str)
     unique_speakers = set(seg["speaker"] for seg in segments)
     num_speakers = len(unique_speakers)
 
-    # --- Markdown output ---
+    # Markdown output
     md_file = OUTPUT_DIR / f"{base_name}_{timestamp}.md"
-    md_content = f"""# סיכום פגישה - LocalScribe
+    md_content = f"""# Meeting Summary — LocalScribe
 
-**תאריך עיבוד:** {datetime.now().strftime("%d/%m/%Y %H:%M")}
-**קובץ מקור:** {Path(audio_path).name}
-**מספר דוברים:** {num_speakers}
-**משך:** {format_timestamp(segments[-1]['end'] if segments else 0)}
+**Processed:** {datetime.now().strftime("%Y-%m-%d %H:%M")}
+**Source file:** {Path(audio_path).name}
+**Speakers:** {num_speakers}
+**Duration:** {format_timestamp(segments[-1]['end'] if segments else 0)}
 
 ---
 
@@ -959,13 +963,13 @@ def save_results(audio_path: str, segments: list, transcript: str, summary: str)
 
 ---
 
-## תמלול מלא (עם זיהוי דוברים)
+## Full Transcript (with Speaker Identification)
 
 {transcript}
 """
     md_file.write_text(md_content, encoding="utf-8")
 
-    # --- JSON output (for future app integration) ---
+    # JSON output (for future app integration)
     json_file = OUTPUT_DIR / f"{base_name}_{timestamp}.json"
     data = {
         "metadata": {
@@ -985,9 +989,9 @@ def save_results(audio_path: str, segments: list, transcript: str, summary: str)
     }
     json_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"💾 תוצאות נשמרו:")
-    print(f"   📄 Markdown: {md_file}")
-    print(f"   📊 JSON:     {json_file}")
+    print(f"Results saved:")
+    print(f"   Markdown: {md_file}")
+    print(f"   JSON:     {json_file}")
     print()
 
     return md_file, json_file
@@ -996,26 +1000,26 @@ def save_results(audio_path: str, segments: list, transcript: str, summary: str)
 def display_results(transcript: str, summary: str):
     """Display results in the terminal."""
     print()
-    print("═" * 60)
-    print("📋 סיכום הפגישה:")
-    print("═" * 60)
+    print("=" * 60)
+    print("Meeting Summary:")
+    print("=" * 60)
     print()
     print(summary)
     print()
-    print("═" * 60)
+    print("=" * 60)
     print()
-    print("─" * 60)
-    print("📄 תמלול מלא (עם דוברים):")
-    print("─" * 60)
+    print("-" * 60)
+    print("Full Transcript (with speakers):")
+    print("-" * 60)
     print()
     # Show first 2000 chars of transcript
     if len(transcript) > 2000:
         print(transcript[:2000])
-        print(f"\n   ... ({len(transcript) - 2000} תווים נוספים בקובץ השמור)")
+        print(f"\n   ... ({len(transcript) - 2000} more characters in saved file)")
     else:
         print(transcript)
     print()
-    print("─" * 60)
+    print("-" * 60)
 
 
 # ============================================================
@@ -1027,11 +1031,11 @@ def record_audio(duration_seconds: int = None) -> Optional[str]:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_file = OUTPUT_DIR / f"recording_{timestamp}.wav"
 
-    print("🎙️  מתחיל הקלטה...")
+    print("Starting recording...")
     if duration_seconds:
-        print(f"   (הקלטה ל-{duration_seconds} שניות)")
+        print(f"   (Recording for {duration_seconds} seconds)")
     else:
-        print("   (לחץ Ctrl+C כדי לעצור)")
+        print("   (Press Ctrl+C to stop)")
     print()
 
     try:
@@ -1051,10 +1055,10 @@ def record_audio(duration_seconds: int = None) -> Optional[str]:
                 cmd.insert(2, str(duration_seconds))
             subprocess.run(cmd, check=True)
     except KeyboardInterrupt:
-        print("\n⏹️  הקלטה הופסקה")
+        print("\nRecording stopped")
 
     if output_file.exists() and output_file.stat().st_size > 0:
-        print(f"✅ הקלטה נשמרה: {output_file}")
+        print(f"Recording saved: {output_file}")
         return str(output_file)
     return None
 
@@ -1064,15 +1068,15 @@ def record_audio(duration_seconds: int = None) -> Optional[str]:
 # ============================================================
 def process_audio(audio_path: str, hf_token: str, num_speakers: int = None):
     """
-    Full pipeline: Diarization → Transcription → Summarization.
+    Full audio pipeline: Diarization -> Transcription -> Summarization.
     """
     print()
-    print("╔══════════════════════════════════════════════════════════════╗")
-    print("║           LocalScribe - עיבוד מלא                           ║")
-    print("║   🎭 זיהוי דוברים → 📝 תמלול עברית → 🤖 סיכום חכם          ║")
-    print("╚══════════════════════════════════════════════════════════════╝")
+    print("+" + "=" * 62 + "+")
+    print("|           LocalScribe — Full Audio Processing                |")
+    print("|   Diarization -> Transcription -> Summarization              |")
+    print("+" + "=" * 62 + "+")
     print()
-    print(f"📂 קובץ: {audio_path}")
+    print(f"File: {audio_path}")
     print()
 
     total_start = time.time()
@@ -1081,14 +1085,14 @@ def process_audio(audio_path: str, hf_token: str, num_speakers: int = None):
     segments = run_diarization(audio_path, hf_token, num_speakers)
 
     if not segments:
-        print("❌ לא זוהה דיבור בקובץ")
+        print("[ERROR] No speech detected in file")
         return
 
     # Stage 2: Transcription
     transcribed_segments = transcribe_segments(audio_path, segments)
 
     if not transcribed_segments:
-        print("❌ התמלול נכשל")
+        print("[ERROR] Transcription failed")
         return
 
     # Format transcript with speaker labels
@@ -1101,7 +1105,7 @@ def process_audio(audio_path: str, hf_token: str, num_speakers: int = None):
     # Save and display
     total_elapsed = time.time() - total_start
 
-    print(f"⏱️  זמן עיבוד כולל: {total_elapsed:.1f} שניות")
+    print(f"Total processing time: {total_elapsed:.1f}s")
     print()
 
     md_file, json_file = save_results(
@@ -1118,10 +1122,10 @@ def process_audio(audio_path: str, hf_token: str, num_speakers: int = None):
 def main():
     """Main entry point."""
     print()
-    print("╔══════════════════════════════════════════════════════════════╗")
-    print("║   LocalScribe v2.0 - תמלול + דוברים + סיכום                 ║")
-    print("║   🔒 100% מקומי | 🇮🇱 עברית | 🎭 זיהוי דוברים | 📄 מסמכים   ║")
-    print("╚══════════════════════════════════════════════════════════════╝")
+    print("+" + "=" * 62 + "+")
+    print("|   LocalScribe v2.0 — Transcription + Diarization + Summary  |")
+    print("|   100% Local  |  Hebrew  |  Speaker ID  |  Documents        |")
+    print("+" + "=" * 62 + "+")
     print()
 
     # Check for document mode first (doesn't need HF token)
@@ -1133,7 +1137,7 @@ def main():
             process_document(doc_path)
             return
         else:
-            print("❌ נדרש נתיב לקובץ אחרי --document")
+            print("[ERROR] File path required after --document")
             return
 
     if "--document-dir" in sys.argv:
@@ -1144,7 +1148,7 @@ def main():
             process_document_dir(dir_path)
             return
         else:
-            print("❌ נדרש נתיב לתיקייה אחרי --document-dir")
+            print("[ERROR] Directory path required after --document-dir")
             return
 
     # Audio mode
@@ -1159,19 +1163,19 @@ def main():
             return
 
         if arg == "--help" or arg == "-h":
-            print("שימוש:")
+            print("Usage:")
             print()
-            print("  📢 מצב אודיו (תמלול + דוברים + סיכום):")
-            print("  python3 localscribe.py <audio_file>          # עיבוד קובץ")
-            print("  python3 localscribe.py --speakers 3 file.mp3 # ציון מספר דוברים")
-            print("  python3 localscribe.py --record               # הקלטה ועיבוד")
+            print("  Audio mode (transcription + diarization + summarization):")
+            print("  python3 localscribe.py <audio_file>            # Process a file")
+            print("  python3 localscribe.py --speakers 3 file.mp3   # Specify speaker count")
+            print("  python3 localscribe.py --record                # Record and process")
             print()
-            print("  📄 מצב מסמכים (סיכום חכם):")
-            print("  python3 localscribe.py --document <file>      # סיכום מסמך בודד")
-            print("  python3 localscribe.py --document-dir <folder> # סיכום כל המסמכים בתיקייה")
+            print("  Document mode (smart summarization):")
+            print("  python3 localscribe.py --document <file>       # Summarize a single document")
+            print("  python3 localscribe.py --document-dir <folder> # Summarize all docs in folder")
             print()
-            print("  פורמטים נתמכים: .md .txt .pdf .docx .doc .rtf .html")
-            print("  סוגי מסמכים: רפואי, משפטי, פרוטוקול פגישה, דוח, הצעת פרויקט, HR, כללי")
+            print("  Supported document formats: .md .txt .pdf .docx .doc .rtf .html")
+            print("  Auto-detected types: medical, legal, meeting, report, proposal, HR, general")
             print()
             return
 
@@ -1187,7 +1191,7 @@ def main():
 
         audio_path = args[0] if args else None
         if not audio_path or not os.path.exists(audio_path):
-            print(f"❌ הקובץ לא נמצא: {audio_path}")
+            print(f"[ERROR] File not found: {audio_path}")
             sys.exit(1)
 
         hf_token = ensure_dependencies(mode="audio")
@@ -1195,27 +1199,27 @@ def main():
         return
 
     # Interactive menu
-    print("מה תרצה לעשות?")
+    print("What would you like to do?")
     print()
-    print("  1. 📂  לעבד קובץ אודיו (תמלול + דוברים + סיכום)")
-    print("  2. 🎙️  להקליט פגישה חדשה ולעבד")
-    print("  3. 📝  לתמלל בלבד (בלי זיהוי דוברים)")
-    print("  4. 📄  לסכם מסמך טקסטואלי")
-    print("  5. 📂  לסכם כל המסמכים בתיקייה")
+    print("  1.  Process an audio file (transcription + diarization + summary)")
+    print("  2.  Record a new meeting and process it")
+    print("  3.  Transcribe only (no speaker diarization)")
+    print("  4.  Summarize a document")
+    print("  5.  Summarize all documents in a folder")
     print()
 
-    choice = input("בחר (1-5): ").strip()
+    choice = input("Choose (1-5): ").strip()
 
     if choice == "1":
         hf_token = ensure_dependencies(mode="audio")
         print()
-        audio_path = input("הכנס נתיב לקובץ אודיו: ").strip()
+        audio_path = input("Enter path to audio file: ").strip()
         if not os.path.exists(audio_path):
-            print(f"❌ הקובץ לא נמצא: {audio_path}")
+            print(f"[ERROR] File not found: {audio_path}")
             return
 
         print()
-        speakers_input = input("מספר דוברים (Enter לזיהוי אוטומטי): ").strip()
+        speakers_input = input("Number of speakers (Enter for auto-detect): ").strip()
         num_speakers = int(speakers_input) if speakers_input else None
 
         process_audio(audio_path, hf_token, num_speakers)
@@ -1231,14 +1235,14 @@ def main():
         # Simple transcription without diarization (legacy mode)
         hf_token = ensure_dependencies(mode="audio")
         print()
-        audio_path = input("הכנס נתיב לקובץ אודיו: ").strip()
+        audio_path = input("Enter path to audio file: ").strip()
         if not os.path.exists(audio_path):
-            print(f"❌ הקובץ לא נמצא: {audio_path}")
+            print(f"[ERROR] File not found: {audio_path}")
             return
 
         import mlx_whisper
 
-        print(f"📝 מתמלל (בלי זיהוי דוברים)...")
+        print("Transcribing (without speaker diarization)...")
         result = mlx_whisper.transcribe(
             audio_path,
             path_or_hf_repo=WHISPER_MODEL,
@@ -1246,27 +1250,27 @@ def main():
             task="transcribe",
         )
         print()
-        print("─" * 50)
+        print("-" * 50)
         print(result["text"])
-        print("─" * 50)
+        print("-" * 50)
 
     elif choice == "4":
         ensure_dependencies(mode="document")
         print()
-        doc_path = input("הכנס נתיב למסמך: ").strip()
+        doc_path = input("Enter path to document: ").strip()
         if not os.path.exists(doc_path):
-            print(f"❌ הקובץ לא נמצא: {doc_path}")
+            print(f"[ERROR] File not found: {doc_path}")
             return
         process_document(doc_path)
 
     elif choice == "5":
         ensure_dependencies(mode="document")
         print()
-        dir_path = input("הכנס נתיב לתיקייה: ").strip()
+        dir_path = input("Enter path to folder: ").strip()
         process_document_dir(dir_path)
 
     else:
-        print("❌ בחירה לא חוקית")
+        print("[ERROR] Invalid choice")
 
 
 if __name__ == "__main__":

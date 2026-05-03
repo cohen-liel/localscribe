@@ -1,52 +1,52 @@
-# עדכון מדיניות משאבי אנוש - עבודה היברידית
+# HR Policy Update — Hybrid Work Model
 
-**חברת נוביטק פתרונות ענן בע"מ**
-**תאריך כניסה לתוקף:** 1 במאי 2026
-**מאושר ע"י:** הנהלת החברה
-**גרסה:** 2.0
-
----
-
-## רקע
-
-בעקבות סקר עובדים שנערך בפברואר 2026 ובו 78% מהעובדים ביקשו גמישות רבה יותר בשעות ובמקום העבודה, ולאור הניסיון המצטבר של שלוש שנים בעבודה היברידית, החברה מעדכנת את מדיניות העבודה ההיברידית. המדיניות החדשה נועדה לאזן בין הצורך בשיתוף פעולה פנים אל פנים לבין הגמישות שהעובדים מבקשים, תוך שמירה על פרודוקטיביות ותרבות ארגונית חזקה.
-
-## עקרונות מנחים
-
-המדיניות מבוססת על שלושה עקרונות מרכזיים. ראשית, אמון הדדי בין החברה לעובדים, כאשר הדגש הוא על תוצאות ולא על נוכחות פיזית. שנית, גמישות מותאמת לצרכי הצוות, כך שכל מנהל יכול להתאים את המדיניות לצרכים הספציפיים של הצוות שלו. שלישית, שמירה על חיבור ותרבות ארגונית באמצעות ימי נוכחות משותפים ואירועים חברתיים.
-
-## מודל העבודה החדש
-
-### ימי נוכחות במשרד
-
-כל העובדים נדרשים לנוכחות במשרד לפחות שלושה ימים בשבוע. ימי שלישי ורביעי הם ימי נוכחות חובה לכלל החברה, כדי לאפשר פגישות צוות, ישיבות הנהלה, ושיתוף פעולה בין-מחלקתי. היום השלישי ייקבע ע"י מנהל הצוות בתיאום עם חברי הצוות.
-
-### ימי עבודה מהבית
-
-בשני הימים הנותרים, העובדים רשאים לעבוד מהבית או מכל מקום אחר שמאפשר עבודה יעילה. התנאים לעבודה מרחוק כוללים חיבור אינטרנט יציב, סביבת עבודה שקטה, וזמינות מלאה בשעות העבודה המוגדרות.
-
-### שעות עבודה גמישות
-
-שעות הליבה הן 10:00-16:00, בהן כל העובדים חייבים להיות זמינים. מעבר לשעות הליבה, העובדים רשאים לגמש את שעות העבודה שלהם כל עוד הם משלימים את מכסת השעות השבועית (42 שעות) ועומדים ביעדים שנקבעו.
-
-## ציוד ותשתיות
-
-החברה תספק לכל עובד ערכת עבודה מהבית הכוללת מסך נוסף, מקלדת ועכבר ארגונומיים, ואוזניות עם מיקרופון. בנוסף, החברה תשתתף בעלות האינטרנט הביתי בסך 100 ש"ח לחודש. עובדים שזקוקים לכיסא ארגונומי יוכלו לבקש אחד דרך מחלקת משאבי אנוש.
-
-## מדידה והערכה
-
-ביצועי העובדים יימדדו על בסיס תוצאות ועמידה ביעדים, ולא על בסיס שעות נוכחות. כל מנהל יקיים שיחת משוב שבועית עם כל עובד, ושיחת הערכה רבעונית מקיפה. במקרה של ירידה בביצועים, המנהל רשאי לדרוש נוכחות מלאה במשרד לתקופה מוגדרת.
-
-## חריגים
-
-תפקידים שדורשים נוכחות פיזית מלאה (כגון צוות IT תשתיות, קבלת קהל) יקבלו מדיניות מותאמת. עובדים חדשים בחודשיים הראשונים נדרשים לנוכחות מלאה במשרד לצורך הכשרה והיכרות. בתקופות עומס מיוחדות (כגון השקות מוצר), ההנהלה רשאית לדרוש נוכחות מלאה בהודעה מוקדמת של שבוע.
-
-## תקשורת ושיתוף פעולה
-
-כל הפגישות שכוללות משתתפים מרוחקים יתקיימו בפורמט היברידי עם וידאו. הכלים המאושרים לתקשורת הם Slack לתקשורת שוטפת, Zoom לפגישות וידאו, ו-Notion לניהול פרויקטים ותיעוד. כל עובד מתחייב לעדכן את סטטוס הזמינות שלו ב-Slack באופן שוטף.
+**NovaTek Cloud Solutions Ltd.**
+**Effective Date:** May 1, 2026
+**Approved by:** Company Management
+**Version:** 2.0
 
 ---
 
-**לשאלות ובירורים:** פנו למחלקת משאבי אנוש, hr@novitech.co.il
+## Background
 
-*מסמך זה הוא בדיוני לחלוטין ונוצר לצורכי בדיקת מערכת בלבד.*
+Following an employee survey conducted in February 2026, in which 78% of employees requested greater flexibility in work hours and location, and based on three years of accumulated hybrid work experience, the company is updating its hybrid work policy. The new policy aims to balance the need for face-to-face collaboration with the flexibility employees seek, while maintaining productivity and a strong organizational culture.
+
+## Guiding Principles
+
+The policy is based on three core principles. First, mutual trust between the company and employees, with emphasis on results rather than physical presence. Second, flexibility tailored to team needs, allowing each manager to adapt the policy to their team's specific requirements. Third, maintaining connection and organizational culture through shared presence days and social events.
+
+## The New Work Model
+
+### Office Presence Days
+
+All employees are required to be present in the office at least three days per week. Tuesday and Wednesday are mandatory presence days for the entire company, to enable team meetings, management sessions, and cross-departmental collaboration. The third day will be determined by the team manager in coordination with team members.
+
+### Work-from-Home Days
+
+On the remaining two days, employees may work from home or any other location that enables productive work. Requirements for remote work include a stable internet connection, a quiet work environment, and full availability during defined work hours.
+
+### Flexible Hours
+
+Core hours are 10:00–16:00, during which all employees must be available. Beyond core hours, employees may adjust their work schedule as long as they complete the weekly hour requirement (42 hours) and meet their defined targets.
+
+## Equipment and Infrastructure
+
+The company will provide each employee with a home work kit including an additional monitor, ergonomic keyboard and mouse, and a headset with microphone. Additionally, the company will contribute NIS 100 per month toward home internet costs. Employees who need an ergonomic chair may request one through the HR department.
+
+## Measurement and Evaluation
+
+Employee performance will be measured based on results and target achievement, not on hours of presence. Each manager will hold a weekly feedback session with each employee and a comprehensive quarterly evaluation. In cases of declining performance, the manager may require full office presence for a defined period.
+
+## Exceptions
+
+Roles that require full physical presence (such as IT infrastructure team, reception) will receive a tailored policy. New employees in their first two months are required to be fully present in the office for training and onboarding. During special high-load periods (such as product launches), management may require full presence with one week's advance notice.
+
+## Communication and Collaboration
+
+All meetings that include remote participants will be held in hybrid format with video. Approved communication tools are Slack for daily communication, Zoom for video meetings, and Notion for project management and documentation. Every employee commits to keeping their Slack availability status updated at all times.
+
+---
+
+**Questions?** Contact the HR department at hr@novitech.co.il
+
+*This document is entirely fictional and was created solely for system testing purposes.*

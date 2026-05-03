@@ -1,108 +1,108 @@
-# פרוטוקול ישיבת דירקטוריון מס' 47
+# Board of Directors Meeting No. 47
 
-**חברה:** אלפא ביוטק בע"מ
-**תאריך:** 15 באפריל 2026
-**שעה:** 14:00-16:30
-**מיקום:** משרדי החברה, פארק המדע הרצליה
-**נוכחים:** ד"ר רון אברהם (יו"ר), שרה גולדשטיין (מנכ"לית), פרופ' דוד כץ (דירקטור חיצוני), עו"ד מירב חן (דירקטורית), רו"ח אמיר נחום (דירקטור)
-**חסרים:** אין
-**מזכיר:** עו"ד תמר לוי (יועצת משפטית)
-
----
-
-## סדר יום
-
-1. אישור פרוטוקול ישיבה קודמת
-2. דוח כספי Q1/2026
-3. עדכון ניסוי קליני שלב III
-4. אישור תקציב מחקר ופיתוח 2026
-5. מינוי סמנכ"ל רגולציה
-6. שונות
+**Company:** Alpha Biotech Ltd.
+**Date:** April 15, 2026
+**Time:** 14:00–16:30
+**Location:** Company offices, Herzliya Science Park
+**Present:** Dr. Ron Abraham (Chairman), Sarah Goldstein (CEO), Prof. David Katz (Independent Director), Adv. Merav Chen (Director), CPA Amir Nachum (Director)
+**Absent:** None
+**Secretary:** Adv. Tamar Levi (General Counsel)
 
 ---
 
-## דיון והחלטות
+## Agenda
 
-### 1. אישור פרוטוקול ישיבה קודמת
-
-הפרוטוקול מישיבה מס' 46 מיום 12 בפברואר 2026 אושר פה אחד ללא הערות.
-
-**החלטה:** הפרוטוקול אושר. (5 בעד, 0 נגד)
-
-### 2. דוח כספי Q1/2026
-
-רו"ח אמיר נחום הציג את הדוח הכספי לרבעון הראשון:
-
-- **הכנסות:** 1.2 מיליון ש"ח (מענקי מחקר ושיתופי פעולה)
-- **הוצאות תפעוליות:** 4.8 מיליון ש"ח
-- **הפסד נקי:** 3.6 מיליון ש"ח
-- **מזומנים:** 28.4 מיליון ש"ח (מספיק ל-18 חודשי פעילות)
-- **שיעור שריפת מזומנים:** 1.6 מיליון ש"ח לחודש
-
-אמיר ציין שההוצאות גבוהות מהתחזית ב-8% בעיקר בשל עלויות הניסוי הקליני שעלו. שרה הסבירה שהעלייה נובעת מהוספת 3 אתרי מחקר נוספים בגרמניה, מה שיקצר את זמן הגיוס ב-4 חודשים.
-
-פרופ' כץ שאל על תוכנית לגיוס הון נוסף. שרה עדכנה שמשא ומתן עם שני קרנות הון סיכון מתקדם, וצפוי סגירה של סבב C בסך 40-50 מיליון דולר ברבעון השלישי.
-
-**החלטה:** הדוח הכספי אושר. (5 בעד, 0 נגד)
-
-### 3. עדכון ניסוי קליני שלב III
-
-שרה הציגה עדכון מפורט על הניסוי הקליני של התרופה AB-301 לטיפול במחלת קרוהן:
-
-- **מטופלים שגויסו:** 312 מתוך 400 מתוכננים (78%)
-- **אתרי מחקר פעילים:** 24 (ב-8 מדינות)
-- **תופעות לוואי חמורות:** 2 מקרים (שניהם לא קשורים לתרופה לפי הערכת ה-DSMB)
-- **ציר זמן:** סיום גיוס צפוי ביולי 2026, תוצאות ראשוניות בינואר 2027
-
-שרה ציינה שה-FDA אישר את בקשת ה-Fast Track Designation, מה שיאפשר הגשה מואצת אם התוצאות יהיו חיוביות.
-
-עו"ד מירב חן שאלה על הגנת הקניין הרוחני. שרה עדכנה שהפטנט הראשי אושר בארה"ב ובאירופה, ובקשות נוספות הוגשו ביפן ובסין.
-
-**החלטה:** הדירקטוריון מאשר את המשך הניסוי הקליני כמתוכנן. (5 בעד, 0 נגד)
-
-### 4. אישור תקציב מחקר ופיתוח 2026
-
-שרה הציגה את תקציב המו"פ המעודכן:
-
-- **תקציב כולל:** 22 מיליון ש"ח (עלייה של 15% מ-2025)
-- **ניסוי קליני AB-301:** 14 מיליון ש"ח
-- **מחקר פרה-קליני AB-502:** 5 מיליון ש"ח
-- **מחקר בסיסי:** 3 מיליון ש"ח
-
-רו"ח נחום העיר שהתקציב המעודכן מחייב גיוס הון נוסף עד Q3. שרה אישרה ואמרה שזה מובנה בתוכנית.
-
-**החלטה:** תקציב המו"פ ל-2026 אושר. (4 בעד, 1 נמנע - רו"ח נחום)
-
-### 5. מינוי סמנכ"ל רגולציה
-
-שרה הציגה את המועמדת ד"ר ליאת פרידמן, בעלת 15 שנות ניסיון ברגולציה פרמצבטית, כולל 7 שנים ב-FDA. ד"ר פרידמן הובילה 3 אישורי תרופות מוצלחים.
-
-תנאי ההעסקה: שכר בסיס 65,000 ש"ח לחודש, בונוס שנתי עד 30%, ו-0.5% אופציות.
-
-**החלטה:** מינוי ד"ר ליאת פרידמן לתפקיד סמנכ"לית רגולציה אושר. (5 בעד, 0 נגד)
-
-### 6. שונות
-
-- ד"ר אברהם עדכן שכנס BIO International בסן דייגו (יוני 2026) יהיה הזדמנות חשובה לפגישות עם שותפים פוטנציאליים. הוחלט שמשלחת של 4 אנשים תשתתף.
-- עו"ד חן ביקשה לעדכן את תקנון החברה בהתאם לתיקון 32 לחוק החברות. עו"ד לוי תכין טיוטה לישיבה הבאה.
+1. Approval of previous meeting minutes
+2. Q1/2026 financial report
+3. Phase III clinical trial update
+4. Approval of 2026 R&D budget
+5. Appointment of VP Regulatory Affairs
+6. Miscellaneous
 
 ---
 
-## סיכום החלטות
+## Discussion and Decisions
 
-| # | החלטה | הצבעה |
-|---|--------|-------|
-| 1 | אישור פרוטוקול ישיבה 46 | פה אחד |
-| 2 | אישור דוח כספי Q1 | פה אחד |
-| 3 | המשך ניסוי קליני AB-301 | פה אחד |
-| 4 | אישור תקציב מו"פ 22 מ' ש"ח | 4 בעד, 1 נמנע |
-| 5 | מינוי ד"ר פרידמן לסמנכ"לית רגולציה | פה אחד |
+### 1. Approval of Previous Meeting Minutes
 
-## ישיבה הבאה
+The minutes of Meeting No. 46 (February 12, 2026) were approved unanimously without amendments.
 
-15 ביולי 2026, 14:00
+**Decision:** Minutes approved. (5 in favor, 0 against)
+
+### 2. Q1/2026 Financial Report
+
+CPA Amir Nachum presented the Q1 financial report:
+
+- **Revenue:** NIS 1.2 million (research grants and collaborations)
+- **Operating expenses:** NIS 4.8 million
+- **Net loss:** NIS 3.6 million
+- **Cash on hand:** NIS 28.4 million (sufficient for 18 months of operations)
+- **Monthly burn rate:** NIS 1.6 million
+
+Amir noted that expenses exceeded forecast by 8%, primarily due to increased clinical trial costs. Sarah explained that the increase stems from adding 3 additional research sites in Germany, which will shorten the enrollment timeline by 4 months.
+
+Prof. Katz asked about plans for additional fundraising. Sarah reported that negotiations with two venture capital funds are advanced, and a Series C round of $40–50 million is expected to close in Q3.
+
+**Decision:** Financial report approved. (5 in favor, 0 against)
+
+### 3. Phase III Clinical Trial Update
+
+Sarah presented a detailed update on the clinical trial of drug AB-301 for the treatment of Crohn's disease:
+
+- **Patients enrolled:** 312 of 400 planned (78%)
+- **Active research sites:** 24 (in 8 countries)
+- **Serious adverse events:** 2 cases (both deemed unrelated to the drug by the DSMB)
+- **Timeline:** Enrollment completion expected July 2026, preliminary results January 2027
+
+Sarah noted that the FDA approved the Fast Track Designation request, which will enable accelerated submission if results are positive.
+
+Adv. Merav Chen asked about intellectual property protection. Sarah reported that the primary patent was granted in the US and Europe, and additional applications have been filed in Japan and China.
+
+**Decision:** The board approves continuation of the clinical trial as planned. (5 in favor, 0 against)
+
+### 4. Approval of 2026 R&D Budget
+
+Sarah presented the updated R&D budget:
+
+- **Total budget:** NIS 22 million (15% increase from 2025)
+- **AB-301 clinical trial:** NIS 14 million
+- **AB-502 pre-clinical research:** NIS 5 million
+- **Basic research:** NIS 3 million
+
+CPA Nachum noted that the updated budget requires additional fundraising by Q3. Sarah confirmed this is built into the plan.
+
+**Decision:** 2026 R&D budget approved. (4 in favor, 1 abstained — CPA Nachum)
+
+### 5. Appointment of VP Regulatory Affairs
+
+Sarah presented the candidate, Dr. Liat Friedman, who has 15 years of pharmaceutical regulatory experience, including 7 years at the FDA. Dr. Friedman has led 3 successful drug approvals.
+
+Employment terms: Base salary NIS 65,000/month, annual bonus up to 30%, and 0.5% stock options.
+
+**Decision:** Appointment of Dr. Liat Friedman as VP Regulatory Affairs approved. (5 in favor, 0 against)
+
+### 6. Miscellaneous
+
+- Dr. Abraham noted that the BIO International conference in San Diego (June 2026) will be an important opportunity for meetings with potential partners. It was decided that a delegation of 4 will attend.
+- Adv. Chen requested an update to the company's articles of association in accordance with Amendment 32 to the Companies Law. Adv. Levi will prepare a draft for the next meeting.
 
 ---
 
-**נרשם ע"י:** עו"ד תמר לוי, יועצת משפטית
-**אושר ע"י:** ד"ר רון אברהם, יו"ר הדירקטוריון
+## Summary of Decisions
+
+| # | Decision | Vote |
+|---|----------|------|
+| 1 | Approval of Meeting 46 minutes | Unanimous |
+| 2 | Approval of Q1 financial report | Unanimous |
+| 3 | Continue AB-301 clinical trial | Unanimous |
+| 4 | Approve R&D budget of NIS 22M | 4 in favor, 1 abstained |
+| 5 | Appoint Dr. Friedman as VP Regulatory | Unanimous |
+
+## Next Meeting
+
+July 15, 2026, 14:00
+
+---
+
+**Recorded by:** Adv. Tamar Levi, General Counsel
+**Approved by:** Dr. Ron Abraham, Chairman of the Board

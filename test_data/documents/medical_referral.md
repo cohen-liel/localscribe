@@ -1,63 +1,63 @@
-# הפניה רפואית
+# Medical Referral
 
-**מרפאת שלום - קופת חולים כללית**
-**סניף:** רמת אביב
-**תאריך:** 25 באפריל 2026
-
----
-
-**מפנה:** ד"ר רחל כהן, רופאת משפחה
-**מופנה אל:** מרפאת אורתופדיה, מרכז רפואי איכילוב
+**Shalom Clinic — Clalit Health Services**
+**Branch:** Ramat Aviv
+**Date:** April 25, 2026
 
 ---
 
-## פרטי המטופל (בדיוניים)
+**Referring Physician:** Dr. Rachel Cohen, Family Medicine
+**Referred To:** Orthopedics Clinic, Ichilov Medical Center
 
-- **שם:** דינה לוי
-- **ת.ז.:** 000-000-001
-- **גיל:** 55
-- **טלפון:** 050-0000000
+---
 
-## סיבת ההפניה
+## Patient Details (fictional)
 
-כאבים כרוניים בברך ימין, מחמירים בחודשיים האחרונים. המטופלת מתלוננת על כאב בעיקר בעלייה ובירידה במדרגות, נפיחות לסירוגין, ותחושת "נעילה" מזדמנת.
+- **Name:** Dina Levi
+- **ID:** 000-000-001
+- **Age:** 55
+- **Phone:** 050-0000000
 
-## רקע רפואי
+## Reason for Referral
 
-- יתר לחץ דם - מטופלת ב-Amlodipine 5mg
-- סוכרת סוג 2 - מטופלת ב-Metformin 850mg x 2
+Chronic right knee pain, worsening over the past two months. The patient reports pain primarily when climbing and descending stairs, intermittent swelling, and occasional "locking" sensation.
+
+## Medical Background
+
+- Hypertension — treated with Amlodipine 5mg
+- Type 2 Diabetes — treated with Metformin 850mg x 2
 - BMI: 31
-- ללא ניתוחים קודמים
-- ללא אלרגיות ידועות לתרופות
+- No prior surgeries
+- No known drug allergies
 
-## ממצאים בבדיקה
+## Physical Examination Findings
 
-- ברך ימין: נפיחות קלה, רגישות בקו המפרק המדיאלי
-- טווח תנועה: כיפוף 110° (מוגבל), יישור מלא
-- מבחן McMurray: חיובי
-- יציבות רצועות: תקינה
-- ברך שמאל: תקינה
+- Right knee: Mild swelling, tenderness along the medial joint line
+- Range of motion: Flexion 110° (limited), full extension
+- McMurray test: Positive
+- Ligament stability: Normal
+- Left knee: Normal
 
-## בדיקות עזר
+## Investigations
 
-- צילום רנטגן ברכיים (20/04/2026): שינויים ניווניים בדרגה 2-3 לפי Kellgren-Lawrence בברך ימין, בעיקר במדור המדיאלי. ברך שמאל - דרגה 1.
-- בדיקות דם (22/04/2026): CRP 4.2, שקיעה 18, חומצה אורית 5.8 - תקינים.
+- X-ray of both knees (April 20, 2026): Degenerative changes grade 2–3 (Kellgren-Lawrence) in the right knee, predominantly in the medial compartment. Left knee — grade 1.
+- Blood tests (April 22, 2026): CRP 4.2, ESR 18, uric acid 5.8 — all within normal limits.
 
-## טיפול שניתן
+## Treatment Provided
 
-- פיזיותרפיה (12 טיפולים) - שיפור חלקי
-- Voltaren ג'ל מקומי
-- Arcoxia 90mg לפי צורך
+- Physiotherapy (12 sessions) — partial improvement
+- Topical Voltaren gel
+- Arcoxia 90mg as needed
 
-## בקשה
+## Request
 
-אבקש הערכה אורתופדית, שקילת MRI ברך ימין, והמלצה לגבי המשך טיפול (כולל אפשרות של זריקת חומצה היאלורונית או הפניה לניתוח).
+Requesting orthopedic evaluation, consideration of right knee MRI, and recommendation for further treatment (including possible hyaluronic acid injection or surgical referral).
 
 ---
 
-**בברכה,**
-ד"ר רחל כהן
-רופאת משפחה, מרפאת שלום רמת אביב
-רישיון מס' 00000
+**Sincerely,**
+Dr. Rachel Cohen
+Family Medicine, Shalom Clinic, Ramat Aviv
+License No. 00000
 
-*מסמך זה הוא בדיוני לחלוטין ונוצר לצורכי בדיקת מערכת בלבד.*
+*This document is entirely fictional and was created solely for system testing purposes.*

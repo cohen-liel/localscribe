@@ -1,178 +1,183 @@
 #!/bin/bash
 # ============================================================
-# LocalScribe v2.0 - סקריפט התקנה למאק (Apple Silicon)
+# LocalScribe v2.0 — Installation Script for Mac (Apple Silicon)
 # ============================================================
-# מתקין את כל מה שצריך: תמלול עברית + זיהוי דוברים + סיכום
+# Installs everything needed: Hebrew transcription + speaker
+# diarization + summarization — all running 100% locally.
 # ============================================================
 
 set -e
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║   LocalScribe v2.0 - התקנה                                  ║"
-echo "║   תמלול + זיהוי דוברים + סיכום פגישות (100% מקומי)          ║"
+echo "║   LocalScribe v2.0 — Installation                          ║"
+echo "║   Transcription + Speaker Diarization + Summarization       ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# בדיקה שזה Mac עם Apple Silicon
+# Verify Apple Silicon Mac
 if [[ $(uname -m) != "arm64" ]]; then
-    echo "❌ הסקריפט הזה מיועד ל-Mac עם Apple Silicon (M1/M2/M3/M4)"
+    echo "ERROR: This script requires a Mac with Apple Silicon (M1/M2/M3/M4)"
     exit 1
 fi
-echo "✅ Mac עם Apple Silicon מזוהה ($(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo 'Apple Silicon'))"
+echo "[OK] Apple Silicon Mac detected ($(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo 'Apple Silicon'))"
 echo ""
 
 # ============================================================
-# שלב 1: כלי מערכת (Homebrew, Python, ffmpeg)
+# Step 1: System Tools (Homebrew, Python, ffmpeg)
 # ============================================================
-echo "📦 שלב 1: כלי מערכת"
+echo "Step 1: System Tools"
 echo "─────────────────────"
 
 # Homebrew
 if ! command -v brew &> /dev/null; then
-    echo "⬇️  מתקין Homebrew..."
+    echo "  Installing Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
-echo "  ✅ Homebrew"
+echo "  [OK] Homebrew"
 
 # Python
 if ! command -v python3 &> /dev/null; then
-    echo "  ⬇️  מתקין Python..."
+    echo "  Installing Python..."
     brew install python@3.11
 fi
-echo "  ✅ Python $(python3 --version 2>&1 | cut -d' ' -f2)"
+echo "  [OK] Python $(python3 --version 2>&1 | cut -d' ' -f2)"
 
 # ffmpeg
 if ! command -v ffmpeg &> /dev/null; then
-    echo "  ⬇️  מתקין ffmpeg..."
+    echo "  Installing ffmpeg..."
     brew install ffmpeg
 fi
-echo "  ✅ ffmpeg"
+echo "  [OK] ffmpeg"
 
 # sox (for recording)
 if ! command -v sox &> /dev/null; then
-    echo "  ⬇️  מתקין sox (להקלטה)..."
+    echo "  Installing sox (for audio recording)..."
     brew install sox
 fi
-echo "  ✅ sox"
+echo "  [OK] sox"
 
 echo ""
 
 # ============================================================
-# שלב 2: Ollama (מנוע AI לסיכום)
+# Step 2: Ollama (Local LLM Engine for Summarization)
 # ============================================================
-echo "🤖 שלב 2: Ollama (מנוע סיכום)"
-echo "─────────────────────────────────"
+echo "Step 2: Ollama (Summarization Engine)"
+echo "──────────────────────────────────────"
 
 if ! command -v ollama &> /dev/null; then
-    echo "  ⬇️  מתקין Ollama..."
+    echo "  Installing Ollama..."
     brew install ollama
 fi
-echo "  ✅ Ollama מותקן"
+echo "  [OK] Ollama installed"
 
-# הפעלת Ollama ברקע אם לא רץ
+# Start Ollama in the background if not running
 if ! pgrep -x "ollama" > /dev/null 2>&1; then
-    echo "  🔄 מפעיל Ollama ברקע..."
+    echo "  Starting Ollama in the background..."
     ollama serve &>/dev/null &
     sleep 3
 fi
 
-# הורדת מודל סיכום
-echo "  ⬇️  מוריד מודל סיכום (qwen3:1.7b, ~1.7GB)..."
+# Download summarization model
+echo "  Downloading summarization model (qwen3:1.7b, ~1.7GB)..."
 ollama pull qwen3:1.7b
-echo "  ✅ מודל סיכום מוכן"
+echo "  [OK] Summarization model ready"
 
 echo ""
 
 # ============================================================
-# שלב 3: סביבת Python וחבילות
+# Step 3: Python Environment & Packages
 # ============================================================
-echo "🐍 שלב 3: חבילות Python"
-echo "──────────────────────────"
+echo "Step 3: Python Packages"
+echo "────────────────────────"
 
-# יצירת סביבה וירטואלית
+# Create virtual environment
 if [ ! -d "$HOME/.localscribe_env" ]; then
-    echo "  📦 יוצר סביבה וירטואלית..."
+    echo "  Creating virtual environment..."
     python3 -m venv ~/.localscribe_env
 fi
 source ~/.localscribe_env/bin/activate
 
-echo "  ⬇️  מתקין חבילות (זה יכול לקחת כמה דקות)..."
+echo "  Installing packages (this may take a few minutes)..."
 
 # Upgrade pip
 pip install --upgrade pip -q
 
 # Core packages
 pip install mlx-whisper -q
-echo "  ✅ mlx-whisper (תמלול על Apple Silicon)"
+echo "  [OK] mlx-whisper (transcription on Apple Silicon)"
 
 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu -q
-echo "  ✅ PyTorch (מנוע חישוב)"
+echo "  [OK] PyTorch (computation engine)"
 
 pip install pyannote.audio -q
-echo "  ✅ pyannote.audio (זיהוי דוברים)"
+echo "  [OK] pyannote.audio (speaker diarization)"
 
 pip install pydub -q
-echo "  ✅ pydub (עיבוד אודיו)"
+echo "  [OK] pydub (audio processing)"
+
+pip install pdfplumber python-docx -q
+echo "  [OK] pdfplumber + python-docx (document parsing)"
 
 echo ""
 
 # ============================================================
-# שלב 4: HuggingFace Token
+# Step 4: HuggingFace Token
 # ============================================================
-echo "🔑 שלב 4: HuggingFace Token"
-echo "─────────────────────────────"
+echo "Step 4: HuggingFace Token"
+echo "──────────────────────────"
 
 HF_TOKEN_FILE="$HOME/.localscribe_hf_token"
 
 if [ -f "$HF_TOKEN_FILE" ]; then
-    echo "  ✅ Token כבר קיים"
+    echo "  [OK] Token already exists"
 elif [ -f "$HOME/.cache/huggingface/token" ]; then
-    echo "  ✅ Token נמצא (huggingface-cli login)"
+    echo "  [OK] Token found (huggingface-cli login)"
 else
     echo ""
-    echo "  ⚠️  נדרש HuggingFace Token (חינמי) עבור מודל זיהוי הדוברים."
+    echo "  A free HuggingFace Token is required for the speaker diarization model."
     echo ""
-    echo "  📋 הוראות:"
-    echo "  1. היכנס ל: https://huggingface.co/settings/tokens"
-    echo "  2. צור token חדש (Read access מספיק)"
-    echo "  3. קבל את תנאי השימוש:"
+    echo "  Instructions:"
+    echo "  1. Go to: https://huggingface.co/settings/tokens"
+    echo "  2. Create a new token (Read access is sufficient)"
+    echo "  3. Accept the model license terms:"
     echo "     https://huggingface.co/pyannote/speaker-diarization-3.1"
     echo "     https://huggingface.co/pyannote/segmentation-3.0"
     echo ""
-    read -p "  הדבק את ה-Token כאן (או Enter לדלג): " HF_TOKEN
+    read -p "  Paste your token here (or press Enter to skip): " HF_TOKEN
     
     if [ -n "$HF_TOKEN" ]; then
         echo "$HF_TOKEN" > "$HF_TOKEN_FILE"
         chmod 600 "$HF_TOKEN_FILE"
-        echo "  ✅ Token נשמר!"
+        echo "  [OK] Token saved!"
     else
-        echo "  ⚠️  תצטרך להזין Token בהפעלה הראשונה"
+        echo "  [WARN] You will need to enter the token on first run"
     fi
 fi
 
 echo ""
 
 # ============================================================
-# סיום
+# Done
 # ============================================================
 echo "═══════════════════════════════════════════════════════════════"
-echo "✅ ההתקנה הושלמה בהצלחה!"
+echo "  Installation complete!"
 echo "═══════════════════════════════════════════════════════════════"
 echo ""
-echo "🚀 כדי להריץ:"
+echo "  To get started:"
 echo ""
 echo "   source ~/.localscribe_env/bin/activate"
 echo "   python3 localscribe.py recording.mp3"
 echo ""
-echo "📋 אפשרויות:"
-echo "   python3 localscribe.py <file>          # עיבוד קובץ"
-echo "   python3 localscribe.py --record        # הקלטה ועיבוד"
-echo "   python3 localscribe.py --speakers 3 f  # ציון מספר דוברים"
-echo "   python3 localscribe.py                 # תפריט אינטראקטיבי"
+echo "  Options:"
+echo "   python3 localscribe.py <file>              # Process audio file"
+echo "   python3 localscribe.py --record            # Record and process"
+echo "   python3 localscribe.py --speakers 3 f.mp3  # Specify speaker count"
+echo "   python3 localscribe.py --document f.pdf    # Summarize a document"
+echo "   python3 localscribe.py                     # Interactive menu"
 echo ""
-echo "💡 בפעם הראשונה, המודלים יירדו אוטומטית (~5GB סה\"כ)."
-echo "   אחרי זה הכל עובד אופליין!"
+echo "  On first run, models will be downloaded automatically (~5GB total)."
+echo "  After that, everything works fully offline!"
 echo ""
-echo "📂 התוצאות יישמרו ב: ~/LocalScribe_Output/"
+echo "  Output is saved to: ~/LocalScribe_Output/"
 echo ""

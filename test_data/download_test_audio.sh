@@ -1,8 +1,9 @@
 #!/bin/bash
 # ============================================================
-# LocalScribe - הורדת קבצי אודיו לבדיקה
+# LocalScribe — Download Test Audio Files
 # ============================================================
-# מוריד קבצי אודיו בעברית ממקורות חופשיים לבדיקת המערכת
+# Downloads Hebrew audio files from freely available sources
+# for testing the transcription + diarization pipeline.
 # ============================================================
 
 set -e
@@ -11,13 +12,15 @@ AUDIO_DIR="$(dirname "$0")/audio"
 mkdir -p "$AUDIO_DIR"
 
 echo ""
-echo "📥 מוריד קבצי אודיו בעברית לבדיקה..."
+echo "Downloading Hebrew audio test files..."
 echo ""
 
-# ─── מקור 1: Listen & Learn Hebrew (Archive.org) ───
-# שיחות בעברית עם 2 דוברים (גבר ואישה) - מצוין לבדיקת זיהוי דוברים
-echo "📦 מקור 1: Listen & Learn Hebrew (שיחות עם 2 דוברים)"
-echo "   מקור: archive.org | רישיון: Public Domain"
+# ─── Source 1: Listen & Learn Hebrew (Archive.org) ───
+# Conversations in Hebrew with 2 speakers (male + female)
+# Ideal for testing speaker diarization
+
+echo "Source 1: Listen & Learn Hebrew (2-speaker conversations)"
+echo "   Origin: archive.org | License: Public Domain"
 
 ARCHIVE_BASE="https://archive.org/download/lp_listen-learn-hebrew_yaakov-israel-ben-david-dr-paul-holtzman"
 
@@ -29,36 +32,38 @@ declare -A CONVERSATIONS=(
 
 for fname in "${!CONVERSATIONS[@]}"; do
     if [ ! -f "$AUDIO_DIR/$fname" ] || [ ! -s "$AUDIO_DIR/$fname" ]; then
-        echo "   ⬇️  $fname..."
-        wget -q --timeout=60 "${ARCHIVE_BASE}/${CONVERSATIONS[$fname]}" -O "$AUDIO_DIR/$fname" || echo "   ⚠️  נכשל: $fname"
+        echo "   Downloading $fname..."
+        wget -q --timeout=60 "${ARCHIVE_BASE}/${CONVERSATIONS[$fname]}" -O "$AUDIO_DIR/$fname" || echo "   [WARN] Failed: $fname"
     else
-        echo "   ✅ $fname (כבר קיים)"
+        echo "   [OK] $fname (already exists)"
     fi
 done
 
 echo ""
 
-# ─── מקור 2: Mechon Mamre Hebrew Bible (קריאה ברורה בעברית) ───
-# דובר יחיד, עברית ברורה - מצוין לבדיקת תמלול
-echo "📦 מקור 2: Mechon Mamre - תנ\"ך בעברית (דובר יחיד, עברית ברורה)"
-echo "   מקור: mechon-mamre.org | רישיון: Public Domain"
+# ─── Source 2: Mechon Mamre Hebrew Bible (clear Hebrew reading) ───
+# Single speaker, clear Hebrew — ideal for testing transcription accuracy
+
+echo "Source 2: Mechon Mamre — Hebrew Bible (single speaker, clear Hebrew)"
+echo "   Origin: mechon-mamre.org | License: Public Domain"
 
 for ch in 01 02 03 04 05; do
     fname="hebrew_bible_genesis_ch${ch}.mp3"
     if [ ! -f "$AUDIO_DIR/$fname" ] || [ ! -s "$AUDIO_DIR/$fname" ]; then
-        echo "   ⬇️  $fname..."
-        wget -q --timeout=30 "https://www.mechon-mamre.org/mp3/t01${ch}.mp3" -O "$AUDIO_DIR/$fname" || echo "   ⚠️  נכשל: $fname"
+        echo "   Downloading $fname..."
+        wget -q --timeout=30 "https://www.mechon-mamre.org/mp3/t01${ch}.mp3" -O "$AUDIO_DIR/$fname" || echo "   [WARN] Failed: $fname"
     else
-        echo "   ✅ $fname (כבר קיים)"
+        echo "   [OK] $fname (already exists)"
     fi
 done
 
 echo ""
 
-# ─── סיכום ───
+# ─── Summary ───
 echo "═══════════════════════════════════════════════════════════"
-echo "📋 קבצי אודיו שהורדו:"
+echo "Downloaded audio files:"
 echo ""
+
 total=0
 for f in "$AUDIO_DIR"/*.mp3; do
     if [ -f "$f" ] && [ -s "$f" ]; then
@@ -69,12 +74,13 @@ for f in "$AUDIO_DIR"/*.mp3; do
         total=$((total + 1))
     fi
 done
+
 echo ""
-echo "   סה\"כ: $total קבצים"
+echo "   Total: $total files"
 echo ""
-echo "🧪 לבדיקה:"
+echo "To test:"
 echo "   python3 localscribe.py test_data/audio/hebrew_social_conversation.mp3"
 echo ""
-echo "💡 טיפ: הקבצים מ-Listen & Learn Hebrew מכילים 2 דוברים"
-echo "   (גבר ואישה) - מושלם לבדיקת זיהוי דוברים!"
+echo "Tip: The Listen & Learn Hebrew files contain 2 speakers"
+echo "   (male + female) — perfect for testing speaker diarization!"
 echo ""

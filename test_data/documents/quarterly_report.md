@@ -1,77 +1,77 @@
-# דוח רבעוני Q1/2026 - חברת נוביטק פתרונות ענן בע"מ
+# Quarterly Report Q1/2026 — NovaTek Cloud Solutions Ltd.
 
-**תאריך הדוח:** 30 באפריל 2026
-**מוגש ע"י:** אלון בן-דוד, סמנכ"ל כספים
-
----
-
-## תקציר מנהלים
-
-הרבעון הראשון של 2026 היה רבעון חזק עבור נוביטק, עם צמיחה של 22% בהכנסות לעומת הרבעון המקביל אשתקד. החברה הגיעה לנקודת איזון תפעולית לראשונה בתולדותיה, והוסיפה 34 לקוחות ארגוניים חדשים. המוצר החדש CloudGuard הושק בהצלחה בפברואר והוא כבר מהווה 12% מההכנסות החדשות. האתגר העיקרי ברבעון היה עלייה בשיעור הנטישה בקרב לקוחות קטנים, שטופל באמצעות השקת תוכנית Success+ ייעודית.
+**Report Date:** April 30, 2026
+**Prepared by:** Alon Ben-David, CFO
 
 ---
 
-## נתונים כספיים
+## Executive Summary
 
-| מדד | Q1/2026 | Q4/2025 | Q1/2025 | שינוי שנתי |
-|-----|---------|---------|---------|-----------|
-| הכנסות | 12.4M ש"ח | 11.8M ש"ח | 10.2M ש"ח | +22% |
-| הכנסות חוזרות (ARR) | 45.6M ש"ח | 42.1M ש"ח | 37.8M ש"ח | +21% |
-| רווח גולמי | 8.7M ש"ח (70%) | 8.1M ש"ח (69%) | 6.9M ש"ח (68%) | +26% |
-| הוצאות תפעוליות | 8.6M ש"ח | 8.9M ש"ח | 8.1M ש"ח | +6% |
-| רווח/הפסד תפעולי | +0.1M ש"ח | -0.8M ש"ח | -1.2M ש"ח | שיפור |
-| מזומנים | 31.2M ש"ח | 29.8M ש"ח | 24.5M ש"ח | +27% |
+Q1 2026 was a strong quarter for NovaTek, with 22% year-over-year revenue growth. The company reached operational breakeven for the first time in its history and added 34 new enterprise customers. The new CloudGuard product launched successfully in February and already accounts for 12% of new revenue. The main challenge during the quarter was an increase in churn among small customers, which was addressed by launching the dedicated Success+ program.
 
 ---
 
-## מדדי ביצוע עיקריים (KPIs)
+## Financial Data
 
-| מדד | Q1/2026 | יעד | סטטוס |
-|-----|---------|-----|-------|
-| לקוחות ארגוניים פעילים | 287 | 280 | עמידה ביעד |
-| לקוחות חדשים ברבעון | 34 | 30 | מעל היעד |
-| שיעור חידוש (Gross Retention) | 91% | 93% | מתחת ליעד |
-| שיעור הרחבה (Net Retention) | 112% | 110% | מעל היעד |
-| ARPU חודשי | 13,250 ש"ח | 13,000 ש"ח | מעל היעד |
-| זמן ממוצע לסגירת עסקה | 45 ימים | 40 ימים | מתחת ליעד |
-| NPS | 62 | 60 | עמידה ביעד |
-
----
-
-## ניתוח לפי מגזרים
-
-### מגזר Enterprise (לקוחות מעל 50,000 ש"ח/שנה)
-
-מגזר ה-Enterprise המשיך להוביל את הצמיחה עם 8 לקוחות חדשים ברבעון, כולל שני בנקים מובילים. ההכנסות ממגזר זה עלו ב-28% לעומת הרבעון המקביל. העסקה הגדולה ביותר ברבעון הייתה עם חברת ביטוח מובילה בשווי 1.2 מיליון ש"ח שנתי.
-
-### מגזר SMB (לקוחות עד 50,000 ש"ח/שנה)
-
-מגזר ה-SMB הראה צמיחה מתונה של 12%, אך שיעור הנטישה עלה ל-14% (מ-9% ברבעון הקודם). הסיבות העיקריות לנטישה זוהו כקשיים בהטמעה וחוסר תמיכה מספקת. בתגובה, הושקה תוכנית Success+ שכוללת ליווי אישי ב-90 הימים הראשונים.
+| Metric | Q1/2026 | Q4/2025 | Q1/2025 | YoY Change |
+|--------|---------|---------|---------|------------|
+| Revenue | NIS 12.4M | NIS 11.8M | NIS 10.2M | +22% |
+| Annual Recurring Revenue (ARR) | NIS 45.6M | NIS 42.1M | NIS 37.8M | +21% |
+| Gross Profit | NIS 8.7M (70%) | NIS 8.1M (69%) | NIS 6.9M (68%) | +26% |
+| Operating Expenses | NIS 8.6M | NIS 8.9M | NIS 8.1M | +6% |
+| Operating Profit/Loss | +NIS 0.1M | -NIS 0.8M | -NIS 1.2M | Improving |
+| Cash Position | NIS 31.2M | NIS 29.8M | NIS 24.5M | +27% |
 
 ---
 
-## עדכון מוצרי
+## Key Performance Indicators (KPIs)
 
-### CloudGuard (חדש)
-
-המוצר הושק ב-15 בפברואר ומספק הגנת סייבר מתקדמת לסביבות ענן. עד סוף הרבעון, 18 לקוחות רכשו את המוצר, והפייפליין כולל עוד 45 לקוחות פוטנציאליים. המשוב מהשוק חיובי מאוד, עם ציון NPS של 72 למוצר.
-
-### CloudConnect (מוצר ליבה)
-
-גרסה 4.2 שוחררה במרץ עם שיפורי ביצועים של 40% ותמיכה בסביבות multi-cloud. שביעות רצון הלקוחות עלתה ל-4.3 מתוך 5 (מ-4.0 ברבעון הקודם).
-
----
-
-## משאבי אנוש
-
-החברה מונה 142 עובדים (עלייה מ-128 ברבעון הקודם). גויסו 18 עובדים חדשים, בעיקר בצוותי פיתוח ומכירות. שיעור העזיבה הרבעוני עמד על 4.2%, נמוך מהממוצע בתעשייה (6.5%). סקר שביעות רצון עובדים הראה ציון של 4.1 מתוך 5.
+| Metric | Q1/2026 | Target | Status |
+|--------|---------|--------|--------|
+| Active Enterprise Customers | 287 | 280 | On Target |
+| New Customers (quarterly) | 34 | 30 | Exceeded |
+| Gross Retention Rate | 91% | 93% | Below Target |
+| Net Revenue Retention | 112% | 110% | Exceeded |
+| Monthly ARPU | NIS 13,250 | NIS 13,000 | Exceeded |
+| Average Time to Close | 45 days | 40 days | Below Target |
+| NPS | 62 | 60 | On Target |
 
 ---
 
-## תחזית Q2/2026
+## Segment Analysis
 
-אנו צופים המשך צמיחה ברבעון השני עם הכנסות צפויות של 13.5-14.0 מיליון ש"ח. הפוקוס יהיה על הפחתת שיעור הנטישה במגזר ה-SMB, הרחבת מכירות CloudGuard, וסגירת 3 עסקאות Enterprise גדולות שנמצאות בשלבים מתקדמים.
+### Enterprise Segment (customers above NIS 50,000/year)
+
+The Enterprise segment continued to lead growth with 8 new customers in the quarter, including two leading banks. Revenue from this segment grew 28% year-over-year. The largest deal of the quarter was with a leading insurance company valued at NIS 1.2 million annually.
+
+### SMB Segment (customers up to NIS 50,000/year)
+
+The SMB segment showed moderate growth of 12%, but churn rate increased to 14% (from 9% in the previous quarter). The main reasons for churn were identified as implementation difficulties and insufficient support. In response, the Success+ program was launched, providing personal onboarding support during the first 90 days.
 
 ---
 
-*מסמך זה הוא בדיוני לחלוטין ונוצר לצורכי בדיקת מערכת בלבד.*
+## Product Update
+
+### CloudGuard (New)
+
+The product launched on February 15 and provides advanced cybersecurity protection for cloud environments. By end of quarter, 18 customers had purchased the product, with a pipeline of 45 additional prospects. Market feedback has been very positive, with an NPS score of 72 for the product.
+
+### CloudConnect (Core Product)
+
+Version 4.2 was released in March with 40% performance improvements and multi-cloud environment support. Customer satisfaction increased to 4.3 out of 5 (from 4.0 in the previous quarter).
+
+---
+
+## Human Resources
+
+The company has 142 employees (up from 128 in the previous quarter). 18 new employees were hired, primarily in development and sales teams. Quarterly attrition rate was 4.2%, below the industry average of 6.5%. An employee satisfaction survey showed a score of 4.1 out of 5.
+
+---
+
+## Q2/2026 Outlook
+
+We project continued growth in Q2 with expected revenue of NIS 13.5–14.0 million. Focus areas will be reducing SMB churn, expanding CloudGuard sales, and closing 3 large Enterprise deals currently in late-stage pipeline.
+
+---
+
+*This document is entirely fictional and was created solely for system testing purposes.*

@@ -1,99 +1,96 @@
 #!/usr/bin/env python3
 """
-Quick Test - בדיקה מהירה של כל הצינור
-=======================================
-בודק שכל הרכיבים עובדים: Ollama, pyannote, mlx-whisper.
-מריץ סיכום על טקסט לדוגמה עם סימוני דוברים.
+LocalScribe — Quick Smoke Test
+================================
+Verifies that all components are installed and working correctly.
+Runs a summarization test with sample Hebrew meeting data.
 
-שימוש:
-    source ~/.localscribe_env/bin/activate
+Usage:
     python3 quick_test.py
 """
 
 import subprocess
 import sys
-import time
 import os
+import time
 
+# Configuration (must match localscribe.py)
 OLLAMA_MODEL = "qwen3:1.7b"
 
-# טקסט לדוגמה - סימולציה של תמלול פגישה עם זיהוי דוברים
+# Sample transcript: a simulated Hebrew team meeting with 5 speakers.
+# Used to test the summarization pipeline without requiring audio input.
 SAMPLE_TRANSCRIPT_WITH_SPEAKERS = """
-[00:00] **דובר 1:** שלום לכולם, תודה שהגעתם לפגישה. היום אנחנו צריכים לדבר על שלושה נושאים: ההשקה, התקציב, והגיוס.
-
-[00:15] **דובר 1:** הנושא הראשון - ההשקה של המוצר החדש. אנחנו מתכננים להשיק בעוד שלושה שבועות, ב-25 למאי. יוסי, אתה אחראי על הצד הטכני - איפה אנחנו עומדים?
-
-[00:32] **דובר 2:** אנחנו בשלבים אחרונים. הבאגים הקריטיים תוקנו, נשארו עוד שני באגים קטנים שנסגור עד סוף השבוע. אני צריך מדנה שתסיים את העיצוב של דף הנחיתה עד יום שלישי.
-
-[00:51] **דובר 3:** בסדר, אני יכולה לסיים את זה. אני רק צריכה את הטקסטים הסופיים ממיכל.
-
-[01:02] **דובר 4:** אני אשלח את הטקסטים מחר בבוקר.
-
-[01:08] **דובר 1:** מצוין. הנושא השני הוא התקציב. אנחנו חורגים ב-15 אחוז מהתקציב המקורי. ההחלטה שלי היא שנקצץ את תקציב הפרסום בפייסבוק ונעביר את הכסף לגוגל, כי שם אנחנו רואים תשואה טובה יותר. אורי, אתה מטפל בזה?
-
-[01:35] **דובר 5:** כן, אני אעדכן את הקמפיינים עד יום חמישי.
-
-[01:42] **דובר 1:** הנושא השלישי - גיוס. אנחנו צריכים עוד מפתח פולסטאק. מיכל, את מתאמת את הראיונות. יש לנו שלושה מועמדים לשבוע הבא.
-
-[01:58] **דובר 4:** נכון, הראיונות ביום שני ושלישי. אני אשלח לכולם את קורות החיים היום.
-
-[02:10] **דובר 1:** אוקיי, אז לסיכום: השקה ב-25 למאי, דנה מסיימת עיצוב עד שלישי, מיכל שולחת טקסטים מחר, אורי מעדכן קמפיינים עד חמישי, וראיונות שבוע הבא. תודה לכולם!
+[00:00] **Speaker 1:** Good morning everyone. Let's start the meeting. We have three topics today: the product launch, the budget, and hiring. Yossi, what's the status on the technical side?
+[00:15] **Speaker 2:** We're almost done. There are two minor bugs left that I need to close by end of week. Other than that, we're ready for launch.
+[00:28] **Speaker 1:** Great. Dana, what about the landing page design?
+[00:33] **Speaker 3:** I'm working on it. I need the final copy from Michal to finish.
+[00:40] **Speaker 1:** Michal?
+[00:42] **Speaker 4:** I'll send the final texts tomorrow morning.
+[00:47] **Speaker 1:** Good. Yossi, make sure those two bugs are closed by end of week. I need Dana to finish the landing page design by Tuesday.
+[00:51] **Speaker 3:** Sure, I can finish that. I just need the final texts from Michal.
+[01:02] **Speaker 4:** I'll send the texts tomorrow morning.
+[01:08] **Speaker 1:** Excellent. The second topic is the budget. We're 15 percent over the original budget. My decision is to cut the Facebook ad budget and move the money to Google, where we're seeing better ROI. Ori, can you handle that?
+[01:35] **Speaker 5:** Yes, I'll update the campaigns by Thursday.
+[01:42] **Speaker 1:** Third topic — hiring. We need another full-stack developer. Michal, you're coordinating the interviews. We have three candidates next week.
+[01:58] **Speaker 4:** Right, interviews are on Monday and Tuesday. I'll send everyone the resumes today.
+[02:10] **Speaker 1:** Okay, to summarize: launch on May 25, Dana finishes design by Tuesday, Michal sends texts tomorrow, Ori updates campaigns by Thursday, and interviews next week. Thanks everyone!
 """
 
 
 def check_component(name: str, check_fn) -> bool:
-    """Check a single component."""
+    """Check a single component and print the result."""
     try:
-        result = check_fn()
-        print(f"  ✅ {name}")
+        check_fn()
+        print(f"  [OK] {name}")
         return True
     except Exception as e:
-        print(f"  ❌ {name}: {e}")
+        print(f"  [FAIL] {name}: {e}")
         return False
 
 
 def test_full_pipeline():
     """Test the full pipeline with sample data."""
     print()
-    print("╔══════════════════════════════════════════════════════════════╗")
-    print("║   LocalScribe v2.0 - בדיקה מהירה                            ║")
-    print("╚══════════════════════════════════════════════════════════════╝")
+    print("+" + "=" * 62 + "+")
+    print("|   LocalScribe v2.0 — Quick Smoke Test                       |")
+    print("+" + "=" * 62 + "+")
     print()
 
     all_ok = True
 
     # --- Component checks ---
-    print("🔍 בודק רכיבים:")
+    print("Checking components:")
     print()
 
     # Check Ollama
     def check_ollama():
         result = subprocess.run(["ollama", "list"], capture_output=True, text=True)
-        assert result.returncode == 0, "Ollama לא רץ - הפעל: ollama serve"
-        assert OLLAMA_MODEL.split(":")[0] in result.stdout, f"מודל {OLLAMA_MODEL} לא מותקן"
-    all_ok &= check_component("Ollama + מודל סיכום", check_ollama)
+        assert result.returncode == 0, "Ollama is not running — start with: ollama serve"
+        assert OLLAMA_MODEL.split(":")[0] in result.stdout, f"Model {OLLAMA_MODEL} not installed"
+    all_ok &= check_component("Ollama + summarization model", check_ollama)
 
     # Check mlx-whisper
     def check_whisper():
         import mlx_whisper  # noqa: F401
-    all_ok &= check_component("mlx-whisper (תמלול)", check_whisper)
+    all_ok &= check_component("mlx-whisper (transcription)", check_whisper)
 
     # Check pyannote
     def check_pyannote():
         import pyannote.audio  # noqa: F401
-    all_ok &= check_component("pyannote.audio (זיהוי דוברים)", check_pyannote)
+    all_ok &= check_component("pyannote.audio (speaker diarization)", check_pyannote)
 
     # Check torch
     def check_torch():
         import torch
         has_mps = torch.backends.mps.is_available()
-        return has_mps
+        if not has_mps:
+            print("    Note: Metal GPU not available (expected on Apple Silicon)")
     all_ok &= check_component("PyTorch (Metal GPU)", check_torch)
 
     # Check pydub
     def check_pydub():
         from pydub import AudioSegment  # noqa: F401
-    all_ok &= check_component("pydub (עיבוד אודיו)", check_pydub)
+    all_ok &= check_component("pydub (audio processing)", check_pydub)
 
     # Check ffmpeg
     def check_ffmpeg():
@@ -113,40 +110,57 @@ def test_full_pipeline():
         hf_cache = Path.home() / ".cache" / "huggingface" / "token"
         if hf_cache.exists():
             return
-        raise Exception("לא נמצא - הריצי install.sh או הזיני ידנית")
+        raise Exception("Not found — run install.sh or enter manually")
     all_ok &= check_component("HuggingFace Token", check_hf_token)
+
+    # Check document parsing libraries
+    def check_doc_libs():
+        import pdfplumber  # noqa: F401
+        import docx  # noqa: F401
+    all_ok &= check_component("Document parsing (pdfplumber + python-docx)", check_doc_libs)
 
     print()
 
     if not all_ok:
-        print("⚠️  חלק מהרכיבים חסרים. הריצו: ./install.sh")
+        print("[WARN] Some components are missing. Run: ./install.sh")
         print()
         return
 
     # --- Summarization test ---
-    print("─" * 60)
-    print("🧪 בדיקת סיכום עם טקסט לדוגמה (5 דוברים):")
-    print("─" * 60)
+    print("-" * 60)
+    print("Running summarization test with sample transcript (5 speakers):")
+    print("-" * 60)
     print()
 
     prompt = f"""/no_think
-אתה עוזר מקצועי לסיכום פגישות בעברית. קיבלת תמלול של פגישה עם 5 משתתפים.
-כל דובר מסומן (דובר 1, דובר 2, וכו').
+You are a professional meeting summarizer. You received a transcript of a meeting with 5 participants.
+Each speaker is labeled (Speaker 1, Speaker 2, etc.).
 
-עליך לספק:
-## כותרת
-## סיכום (3-5 משפטים)
-## משימות לביצוע (מי, מה, עד מתי)
-## החלטות שהתקבלו
+Provide the following:
 
-התמלול:
+## Title
+A short, focused name for the meeting (one line)
+
+## Summary
+3-5 sentences summarizing the key points of the meeting
+
+## Action Items
+A numbered list. For each item include:
+- Who is responsible (by speaker number)
+- What needs to be done
+- Deadline (if mentioned)
+
+## Decisions Made
+A list of decisions made during the meeting (if any)
+
 ---
+Transcript:
 {SAMPLE_TRANSCRIPT_WITH_SPEAKERS}
 ---
 
-סכם בעברית:"""
+Summarize professionally and clearly:"""
 
-    print(f"  🤖 מסכם עם {OLLAMA_MODEL}...")
+    print(f"  Summarizing with {OLLAMA_MODEL}...")
     start_time = time.time()
 
     result = subprocess.run(
@@ -159,27 +173,28 @@ def test_full_pipeline():
     elapsed = time.time() - start_time
     summary = result.stdout.strip()
 
-    # Remove thinking tags if present
+    # Remove thinking tags if present (Qwen3 sometimes outputs them)
     if "<think>" in summary:
         import re
         summary = re.sub(r"<think>.*?</think>", "", summary, flags=re.DOTALL).strip()
 
-    print(f"  ✅ סיכום הושלם ב-{elapsed:.1f} שניות")
+    print(f"  [OK] Summarization complete in {elapsed:.1f}s")
     print()
-    print("═" * 60)
-    print("📋 תוצאת הסיכום:")
-    print("═" * 60)
+    print("=" * 60)
+    print("Summary Result:")
+    print("=" * 60)
     print()
     print(summary)
     print()
-    print("═" * 60)
+    print("=" * 60)
     print()
-    print("🎉 הכל עובד! עכשיו אתה יכול:")
+    print("All tests passed! You can now run:")
     print()
-    print("   python3 localscribe.py recording.mp3      # עיבוד קובץ מלא")
-    print("   python3 localscribe.py --record           # הקלטה ועיבוד")
+    print("   python3 localscribe.py recording.mp3      # Process a full audio file")
+    print("   python3 localscribe.py --record            # Record and process")
+    print("   python3 localscribe.py --document file.pdf # Summarize a document")
     print()
-    print("   הפלט יכלול: תמלול עברית + זיהוי מי אמר מה + סיכום חכם")
+    print("   Output includes: Hebrew transcription + speaker identification + smart summary")
     print()
 
 

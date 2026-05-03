@@ -1,61 +1,90 @@
-# LocalScribe v2.0 - תמלול + זיהוי דוברים + סיכום פגישות
+# LocalScribe v2.0 — Local Meeting Transcription + Speaker Diarization + Smart Summarization
 
-**תמלול פגישות בעברית עם זיהוי "מי אמר מה" + סיכום מסמכים חכם - הכל 100% מקומי על המאק שלך.**
+**Transcribe Hebrew meetings with "who said what" speaker identification + intelligent document summarization — 100% local on your Mac.**
 
----
-
-## מה חדש בגרסה 2.0
-
-| תכונה | v1.0 | v2.0 |
-|--------|------|------|
-| תמלול עברית | Whisper Large V3 | **ivrit.ai Turbo** (94-95% דיוק) |
-| זיהוי דוברים | ❌ | **✅ pyannote 3.1** (מי אמר מה) |
-| סיכום | Qwen3 1.7B | **Qwen3 1.7B** (עם הקשר דוברים) |
-| Action Items | בסיסי | **משויך לדובר ספציפי** |
-| Apple Metal GPU | ❌ | **✅** (מאיץ את זיהוי הדוברים) |
-| סיכום מסמכים | ❌ | **✅** (רפואי, משפטי, עסקי, HR) |
-| קבצי בדיקה | ❌ | **✅** (אודיו + מסמכים) |
+No cloud. No API keys for transcription. No data leaves your machine. Ever.
 
 ---
 
-## איך זה עובד
+## What's New in v2.0
+
+| Feature | v1.0 | v2.0 |
+|---------|------|------|
+| Hebrew Transcription | Whisper Large V3 | **ivrit.ai Turbo** (94–95% accuracy) |
+| Speaker Diarization | — | **pyannote 3.1** (who said what) |
+| Summarization | Qwen3 1.7B | **Qwen3 1.7B** (speaker-aware context) |
+| Action Items | Basic | **Assigned to specific speakers** |
+| Apple Metal GPU | — | **Accelerated diarization** |
+| Document Summarization | — | **Medical, legal, business, HR, and more** |
+| Test Data | — | **Audio samples + sample documents included** |
+
+---
+
+## How It Works
+
+### Audio Pipeline
 
 ```
-🎙️ הקלטה/קובץ אודיו
+🎙️  Recording / Audio File
         │
         ▼
-┌─────────────────────────┐
-│  שלב 1: זיהוי דוברים    │  pyannote.audio 3.1 (Apple Metal GPU)
-│  "מי דיבר ומתי?"        │  → דובר 1: 00:00-00:15, דובר 2: 00:15-00:32...
-└─────────────────────────┘
+┌──────────────────────────────┐
+│  Stage 1: Speaker Diarization │  pyannote.audio 3.1 (Apple Metal GPU)
+│  "Who spoke and when?"        │  → Speaker 1: 00:00–00:15, Speaker 2: 00:15–00:32 ...
+└──────────────────────────────┘
         │
         ▼
-┌─────────────────────────┐
-│  שלב 2: תמלול עברית     │  ivrit.ai Turbo (mlx-whisper, Apple ANE)
-│  "מה נאמר?"             │  → טקסט מדויק בעברית לכל קטע
-└─────────────────────────┘
+┌──────────────────────────────┐
+│  Stage 2: Hebrew Transcription│  ivrit.ai Turbo (mlx-whisper, Apple ANE)
+│  "What was said?"             │  → Accurate Hebrew text per segment
+└──────────────────────────────┘
         │
         ▼
-┌─────────────────────────┐
-│  שלב 3: סיכום חכם       │  Qwen3 1.7B (Ollama, מקומי)
-│  "מה חשוב?"             │  → סיכום + החלטות + משימות
-└─────────────────────────┘
+┌──────────────────────────────┐
+│  Stage 3: Smart Summarization │  Qwen3 1.7B (Ollama, fully local)
+│  "What matters?"              │  → Summary + Decisions + Action Items
+└──────────────────────────────┘
         │
         ▼
-📄 קובץ Markdown + JSON מסודר
+📄  Structured Markdown + JSON output
+```
+
+### Document Pipeline
+
+```
+📄  Document (PDF / DOCX / Markdown / TXT / HTML)
+        │
+        ▼
+┌──────────────────────────────┐
+│  Stage 1: Read & Parse        │  Supports PDF, DOCX, MD, TXT, RTF, HTML
+└──────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────┐
+│  Stage 2: Auto-Detect Type    │  Medical | Legal | Meeting | Report | Proposal | HR | General
+└──────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────┐
+│  Stage 3: Smart Summarization │  Type-specific prompt → tailored summary
+└──────────────────────────────┘
+        │
+        ▼
+📄  Structured Markdown + JSON output
 ```
 
 ---
 
-## התקנה (10 דקות)
+## Installation (10 minutes)
 
-### דרישות מקדימות
-- Mac עם Apple Silicon (M1/M2/M3/M4)
-- macOS 13+ (Ventura ומעלה)
-- ~8GB מקום פנוי (למודלים)
-- חשבון HuggingFace חינמי (לזיהוי דוברים)
+### Prerequisites
 
-### התקנה אוטומטית
+- Mac with Apple Silicon (M1 / M2 / M3 / M4)
+- macOS 13+ (Ventura or later)
+- ~8 GB free disk space (for models)
+- Free HuggingFace account (for speaker diarization model)
+
+### Automatic Installation
 
 ```bash
 git clone https://github.com/cohen-liel/localscribe.git
@@ -64,213 +93,229 @@ chmod +x install.sh
 ./install.sh
 ```
 
-### התקנה ידנית
+### Manual Installation
 
 ```bash
-# 1. כלי מערכת
+# 1. System tools
 brew install ffmpeg sox ollama
 
-# 2. מודל סיכום
+# 2. Summarization model
 ollama serve &
 ollama pull qwen3:1.7b
 
-# 3. סביבת Python
+# 3. Python environment
 python3 -m venv ~/.localscribe_env
 source ~/.localscribe_env/bin/activate
 pip install -r requirements.txt
 
-# 4. HuggingFace Token (חינמי, נדרש לזיהוי דוברים)
-# היכנס ל: https://huggingface.co/settings/tokens
-# קבל תנאי שימוש: https://huggingface.co/pyannote/speaker-diarization-3.1
+# 4. HuggingFace Token (free, required for speaker diarization)
+#    Create token: https://huggingface.co/settings/tokens
+#    Accept terms: https://huggingface.co/pyannote/speaker-diarization-3.1
 ```
 
 ---
 
-## שימוש
+## Usage
 
-### הפעלה בסיסית
+### Audio Mode (Transcription + Diarization + Summarization)
 
 ```bash
 source ~/.localscribe_env/bin/activate
 
-# עיבוד קובץ אודיו (תמלול + דוברים + סיכום)
+# Process an audio file (full pipeline)
 python3 localscribe.py meeting.mp3
 
-# הקלטה ועיבוד
+# Record a meeting and process it
 python3 localscribe.py --record
 
-# ציון מספר דוברים ידוע (משפר דיוק)
+# Specify a known number of speakers (improves accuracy)
 python3 localscribe.py meeting.mp3 --speakers 3
 
-# סיכום מסמך בודד
-python3 localscribe.py --document report.pdf
-
-# סיכום כל המסמכים בתיקייה
-python3 localscribe.py --document-dir ./documents/
-
-# תפריט אינטראקטיבי
+# Interactive menu
 python3 localscribe.py
 ```
 
-### בדיקה מהירה (בלי הקלטה)
+### Document Mode (Smart Summarization)
+
+```bash
+# Summarize a single document
+python3 localscribe.py --document report.pdf
+
+# Summarize all documents in a folder
+python3 localscribe.py --document-dir ./documents/
+```
+
+### Quick Test (no recording needed)
 
 ```bash
 python3 quick_test.py
 ```
 
-### פורמטי אודיו נתמכים
+### Supported Audio Formats
+
 mp3, wav, m4a, mp4, webm, ogg, flac, aac
 
-### פורמטי מסמכים נתמכים
+### Supported Document Formats
+
 md, txt, pdf, docx, doc, rtf, html
 
-### סוגי מסמכים מזוהים אוטומטית
-🏥 רפואי | ⚖️ משפטי | 📋 פרוטוקול פגישה | 📊 דוח | 💡 הצעת פרויקט | 👥 HR/מדיניות | 📄 כללי
+### Auto-Detected Document Types
+
+| Icon | Type | Tailored Summary Includes |
+|------|------|--------------------------|
+| 🏥 | Medical | Diagnoses, medications, follow-up instructions |
+| ⚖️ | Legal | Parties, key clauses, financial obligations, deadlines |
+| 📋 | Meeting | Decisions, action items, open issues |
+| 📊 | Report | Key metrics, trends, risks, recommendations |
+| 💡 | Proposal | Objectives, timeline, budget, ROI |
+| 👥 | HR / Policy | Principles, rules, employee impact |
+| 📄 | General | Key points, important details, conclusions |
 
 ---
 
-## דוגמה לתוצאה
+## Example Output
 
-נניח שהקלטת פגישת צוות של 30 דקות עם 4 משתתפים:
+Given a 30-minute team meeting with 4 participants:
 
 ```markdown
-# סיכום פגישה - LocalScribe
+# Meeting Summary — LocalScribe
 
-**תאריך:** 03/05/2026 14:30
-**מספר דוברים:** 4
-**משך:** 32:15
+**Date:** 2026-05-03 14:30
+**Speakers:** 4
+**Duration:** 32:15
 
 ---
 
-## כותרת
-פגישת סטטוס - השקת מוצר חדש
+## Title
+Status Meeting — New Product Launch
 
-## סיכום
-פגישת צוות שדנה בהשקת המוצר ב-25 למאי. הצד הטכני כמעט מוכן,
-נשארו שני באגים קטנים. יש חריגה תקציבית של 15% שתטופל
-בהעברת תקציב מפייסבוק לגוגל. מתחילים גיוס מפתח פולסטאק.
+## Summary
+The team discussed the product launch scheduled for May 25. The technical side
+is nearly complete with two minor bugs remaining. There is a 15% budget overrun
+that will be addressed by reallocating spend from Facebook to Google Ads.
+Hiring for a full-stack developer position begins next week.
 
-## משימות לביצוע
-1. **דובר 2** (יוסי) - לסגור 2 באגים אחרונים עד סוף השבוע
-2. **דובר 3** (דנה) - לסיים עיצוב דף נחיתה עד יום שלישי
-3. **דובר 4** (מיכל) - לשלוח טקסטים סופיים מחר בבוקר
-4. **דובר 5** (אורי) - לעדכן קמפיינים עד יום חמישי
-5. **דובר 4** (מיכל) - לשלוח קורות חיים של מועמדים היום
+## Action Items
+1. **Speaker 2** (Yossi) — Fix the 2 remaining bugs by end of week
+2. **Speaker 3** (Dana) — Finish landing page design by Tuesday
+3. **Speaker 4** (Michal) — Send final copy tomorrow morning
+4. **Speaker 5** (Ori) — Update ad campaigns by Thursday
+5. **Speaker 4** (Michal) — Share candidate resumes today
 
-## החלטות
-- השקה ב-25 למאי כמתוכנן
-- העברת תקציב פרסום מפייסבוק לגוגל
-- גיוס מפתח פולסטאק - ראיונות שבוע הבא
+## Decisions
+- Launch on May 25 as planned
+- Shift ad budget from Facebook to Google
+- Full-stack developer interviews next week
 ```
 
 ---
 
-## ביצועים על Mac M4
+## Performance on Apple Silicon
 
-| פעולה | זמן משוער | הערות |
-|-------|-----------|-------|
-| זיהוי דוברים (30 דק') | ~1-2 דקות | Metal GPU |
-| תמלול עברית (30 דק') | ~3-4 דקות | Apple ANE |
-| סיכום | 10-30 שניות | Ollama |
-| **סה"כ לפגישה של 30 דק'** | **~5-7 דקות** | |
-| הורדת מודלים (פעם ראשונה) | ~10 דקות | ~8GB |
+| Operation | Estimated Time | Notes |
+|-----------|---------------|-------|
+| Speaker Diarization (30 min audio) | ~1–2 min | Metal GPU accelerated |
+| Hebrew Transcription (30 min audio) | ~3–4 min | Apple ANE accelerated |
+| Summarization | 10–30 sec | Ollama (local) |
+| **Total for a 30-min meeting** | **~5–7 min** | |
+| Model download (first run only) | ~10 min | ~8 GB total |
 
 ---
 
-## מבנה הפרויקט
+## Project Structure
 
 ```
 localscribe/
-├── localscribe.py              # הסקריפט הראשי (v2.0 - Pipeline מלא)
-├── transcribe_and_summarize.py # גרסה ישנה (v1.0 - תמלול + סיכום בלבד)
-├── quick_test.py               # בדיקה מהירה של כל הרכיבים
-├── install.sh                  # סקריפט התקנה אוטומטי
-├── requirements.txt            # תלויות Python
-├── architecture.md             # מסמך ארכיטקטורה טכני
-├── README.md                   # המדריך הזה
-└── test_data/                  # קבצי בדיקה
-    ├── README.md               # מדריך לקבצי הבדיקה
-    ├── download_test_audio.sh  # סקריפט הורדת אודיו לבדיקה
-    ├── audio/                  # קבצי אודיו בעברית
-    │   ├── hebrew_social_conversation.mp3  (2 דוברים, 4:30)
-    │   ├── hebrew_personal_matters.mp3     (2 דוברים, 3:00)
-    │   ├── hebrew_making_understood.mp3    (2 דוברים, 2:30)
-    │   └── hebrew_bible_genesis_ch*.mp3    (דובר יחיד, ~4:00)
-    └── documents/              # מסמכים לבדיקת סיכום
-        ├── meeting_summary_startup.md      (פגישת סטארטאפ)
-        ├── meeting_summary_board.md        (ישיבת דירקטוריון)
-        ├── medical_discharge_letter.md     (מכתב שחרור)
-        ├── medical_referral.md             (הפניה רפואית)
-        ├── legal_contract_summary.md       (חוזה שכירות)
-        ├── quarterly_report.md             (דוח רבעוני)
-        ├── project_proposal.md             (הצעת פרויקט)
-        └── hr_policy_update.md             (מדיניות HR)
+├── localscribe.py              # Main script (v2.0 — full pipeline)
+├── transcribe_and_summarize.py # Legacy script (v1.0 — transcription + summary only)
+├── quick_test.py               # Quick smoke test for all components
+├── install.sh                  # Automated installation script
+├── requirements.txt            # Python dependencies
+├── architecture.md             # Technical architecture document
+├── README.md                   # This file
+└── test_data/                  # Test files
+    ├── README.md               # Guide to test data
+    ├── download_test_audio.sh  # Script to download additional audio samples
+    ├── audio/                  # Hebrew audio samples
+    │   ├── hebrew_social_conversation.mp3  (2 speakers, 4:30)
+    │   ├── hebrew_personal_matters.mp3     (2 speakers, 3:00)
+    │   ├── hebrew_making_understood.mp3    (2 speakers, 2:30)
+    │   └── hebrew_bible_genesis_ch*.mp3    (single speaker, ~4:00 each)
+    └── documents/              # Sample documents for summarization testing
+        ├── meeting_summary_startup.md      (Startup team meeting)
+        ├── meeting_summary_board.md        (Board of directors meeting)
+        ├── medical_discharge_letter.md     (Hospital discharge letter)
+        ├── medical_referral.md             (Medical referral)
+        ├── legal_contract_summary.md       (Rental contract)
+        ├── quarterly_report.md             (Quarterly business report)
+        ├── project_proposal.md             (IT project proposal)
+        └── hr_policy_update.md             (Hybrid work policy)
 ```
 
 ---
 
-## טיפים
+## Tips
 
-### לתמלול טוב יותר
-- הקלט בסביבה שקטה
-- דבר ברור ובקצב רגיל
-- מיקרופון חיצוני ישפר את האיכות משמעותית
+### Better Transcription
+- Record in a quiet environment
+- Speak clearly at a normal pace
+- An external microphone significantly improves quality
 
-### לסיכום טוב יותר
-- אם הסיכום לא מספיק טוב עם `qwen3:1.7b`, נסה מודל גדול יותר:
+### Better Summarization
+- If summaries are not detailed enough with `qwen3:1.7b`, try a larger model:
   ```bash
-  ollama pull qwen3:4b    # 4B - טוב יותר, קצת יותר איטי
-  ollama pull gemma3:4b   # חלופה מצוינת
+  ollama pull qwen3:4b    # Better quality, slightly slower
+  ollama pull gemma3:4b   # Excellent alternative
   ```
-- ערוך את `OLLAMA_MODEL` בסקריפט בהתאם
+- Edit `OLLAMA_MODEL` in the script accordingly
 
-### לזיהוי דוברים טוב יותר
-- ציין מספר דוברים ידוע: `--speakers 3`
-- הקלט עם מיקרופון שמפריד ערוצים (stereo) אם אפשר
-- ודא שאין רעשי רקע חזקים
-
----
-
-## שאלות נפוצות
-
-**ש: למה צריך HuggingFace Token?**
-ת: מודל זיהוי הדוברים (pyannote) דורש הסכמה לתנאי שימוש. ה-Token חינמי ונדרש רק להורדה הראשונה.
-
-**ש: כמה מקום זה תופס?**
-ת: ~8GB סה"כ (3GB Whisper + 3GB pyannote + 1.7GB Qwen3). פעם אחת.
-
-**ש: זה עובד בלי אינטרנט?**
-ת: כן! אחרי ההתקנה הראשונית, הכל עובד אופליין לחלוטין.
-
-**ש: מה הדיוק של זיהוי הדוברים?**
-ת: pyannote 3.1 מגיע ל-DER (Diarization Error Rate) של כ-10-15% על שיחות טיפוסיות. ציון מספר הדוברים מראש (--speakers N) משפר את הדיוק.
-
-**ש: מה ההבדל בין זה ל-Otter.ai / Fireflies?**
-ת: 1) הכל מקומי - אף בייט לא עוזב את המחשב. 2) חינם לנצח. 3) עובד אופליין. 4) תמלול עברית מדויק יותר (ivrit.ai).
-
-**ש: אפשר להריץ על אייפון?**
-ת: עדיין לא. הגרסה הנוכחית היא PoC למאק. אפליקציית iOS תשתמש ב-FluidAudio (CoreML) במקום pyannote.
+### Better Speaker Diarization
+- Specify the known number of speakers: `--speakers 3`
+- Use a stereo microphone that separates channels if possible
+- Minimize background noise
 
 ---
 
-## הצעד הבא: אפליקציית iOS
+## FAQ
 
-הארכיטקטורה לאייפון כבר מתוכננת (ראה `architecture.md`):
-- **FluidAudio** (Swift, CoreML) - זיהוי דוברים על ANE
-- **ivrit.ai Turbo** (CoreML) - תמלול עברית
-- **Qwen3** (MLX-Swift) - סיכום מקומי
+**Q: Why do I need a HuggingFace Token?**
+A: The speaker diarization model (pyannote) requires you to accept its license terms. The token is free and only needed for the initial model download.
+
+**Q: How much disk space does it use?**
+A: ~8 GB total (3 GB Whisper + 3 GB pyannote + 1.7 GB Qwen3). One-time download.
+
+**Q: Does it work offline?**
+A: Yes! After the initial setup, everything runs completely offline. No internet required.
+
+**Q: How accurate is speaker diarization?**
+A: pyannote 3.1 achieves a Diarization Error Rate (DER) of approximately 10–15% on typical conversations. Specifying the number of speakers in advance (`--speakers N`) improves accuracy.
+
+**Q: How is this different from Otter.ai / Fireflies / Granola?**
+A: (1) Fully local — no data ever leaves your machine. (2) Free forever. (3) Works offline. (4) Superior Hebrew transcription accuracy via ivrit.ai.
+
+**Q: Can I run this on iPhone?**
+A: Not yet. The current version is a Mac PoC. An iOS app would use FluidAudio (CoreML) instead of pyannote. See `architecture.md` for the planned iOS architecture.
 
 ---
 
-## רישיון
+## Roadmap: iOS App
 
-MIT License - שימוש חופשי.
+The iOS architecture is already planned (see `architecture.md`):
+- **FluidAudio** (Swift, CoreML) — Speaker diarization on Apple Neural Engine
+- **ivrit.ai Turbo** (CoreML) — Hebrew transcription
+- **Qwen3** (MLX-Swift) — Local summarization
 
-**מודלים בשימוש:**
+---
+
+## License
+
+MIT License — free to use, modify, and distribute.
+
+**Models used:**
 - ivrit.ai Whisper Turbo: MIT License
-- pyannote.audio: MIT License (מודל דורש הסכמה)
+- pyannote.audio: MIT License (model requires license acceptance)
 - Qwen3: Apache 2.0
 
 ---
 
-*נבנה עם ❤️ למען פרטיות מוחלטת. אף בייט לא עזב את המחשב שלך.*
+*Built with privacy in mind. Not a single byte leaves your machine.*

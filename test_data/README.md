@@ -1,67 +1,67 @@
-# Test Data - קבצי בדיקה
+# Test Data
 
-תיקייה זו מכילה קבצי בדיקה לבדיקת LocalScribe - אודיו ומסמכים.
+This directory contains sample files for testing LocalScribe — both audio and documents.
 
 ---
 
-## אודיו (`audio/`)
+## Audio (`audio/`)
 
-קבצי אודיו בעברית ממקורות חופשיים לבדיקת הצינור המלא (תמלול + זיהוי דוברים + סיכום).
+Hebrew audio files from freely available sources for testing the full pipeline (transcription + speaker diarization + summarization).
 
-### הורדה אוטומטית
+### Automatic Download
 ```bash
 chmod +x test_data/download_test_audio.sh
 ./test_data/download_test_audio.sh
 ```
 
-### קבצים זמינים
+### Available Files
 
-| קובץ | מקור | תיאור | דוברים | אורך |
-|-------|------|--------|--------|------|
-| `hebrew_social_conversation.mp3` | Archive.org | שיחה חברתית בעברית | 2 (גבר + אישה) | ~4:30 |
-| `hebrew_personal_matters.mp3` | Archive.org | שיחה על עניינים אישיים | 2 (גבר + אישה) | ~3:00 |
-| `hebrew_making_understood.mp3` | Archive.org | שיחה על הבנה הדדית | 2 (גבר + אישה) | ~2:30 |
-| `hebrew_bible_genesis_ch01.mp3` | Mechon Mamre | בראשית פרק א' | 1 (דובר יחיד) | ~6:00 |
-| `hebrew_bible_genesis_ch02.mp3` | Mechon Mamre | בראשית פרק ב' | 1 (דובר יחיד) | ~4:25 |
-| `hebrew_bible_genesis_ch03-05.mp3` | Mechon Mamre | בראשית פרקים ג'-ה' | 1 (דובר יחיד) | ~4:20 כ"א |
+| File | Source | Description | Speakers | Duration |
+|------|--------|-------------|----------|----------|
+| `hebrew_social_conversation.mp3` | Archive.org | Social conversation in Hebrew | 2 (male + female) | ~4:30 |
+| `hebrew_personal_matters.mp3` | Archive.org | Conversation about personal matters | 2 (male + female) | ~3:00 |
+| `hebrew_making_understood.mp3` | Archive.org | Conversation about mutual understanding | 2 (male + female) | ~2:30 |
+| `hebrew_bible_genesis_ch01.mp3` | Mechon Mamre | Genesis Chapter 1 | 1 (single speaker) | ~6:00 |
+| `hebrew_bible_genesis_ch02.mp3` | Mechon Mamre | Genesis Chapter 2 | 1 (single speaker) | ~4:25 |
+| `hebrew_bible_genesis_ch03-05.mp3` | Mechon Mamre | Genesis Chapters 3–5 | 1 (single speaker) | ~4:20 each |
 
-### מקורות נוספים מומלצים
+### Additional Recommended Sources
 
-לבדיקה מתקדמת יותר, ניתן להוריד מהמקורות הבאים:
+For more advanced testing, you can download from the following datasets:
 
-| מקור | תיאור | קישור |
-|------|--------|-------|
-| **Verbit Hebrew Medical Audio** | 1000+ הקלטות רפואיות, 41 דוברים | [HuggingFace](https://huggingface.co/datasets/verbit/hebrew_medical_audio) |
-| **ivrit.ai Knesset Plenums** | הקלטות ישיבות כנסת עם תמלולים | [HuggingFace](https://huggingface.co/datasets/ivrit-ai/knesset-plenums) |
-| **HebDB** | 2500 שעות דיבור ספונטני בעברית | [HuggingFace](https://huggingface.co/datasets/SLPRL-HUJI/HebDB) |
-| **Robo-Shaul** | 30 שעות פודקאסט כלכלי ישראלי | [HuggingFace](https://huggingface.co/datasets/Roboshaul/Roboshaul) |
+| Source | Description | Link |
+|--------|-------------|------|
+| **Verbit Hebrew Medical Audio** | 1,000+ medical recordings, 41 speakers | [HuggingFace](https://huggingface.co/datasets/verbit/hebrew_medical_audio) |
+| **ivrit.ai Knesset Plenums** | Israeli parliament session recordings with transcripts | [HuggingFace](https://huggingface.co/datasets/ivrit-ai/knesset-plenums) |
+| **HebDB** | 2,500 hours of spontaneous Hebrew speech | [HuggingFace](https://huggingface.co/datasets/SLPRL-HUJI/HebDB) |
+| **Robo-Shaul** | 30 hours of Israeli economics podcast | [HuggingFace](https://huggingface.co/datasets/Roboshaul/Roboshaul) |
 
 ---
 
-## מסמכים (`documents/`)
+## Documents (`documents/`)
 
-מסמכים גנריים בעברית לבדיקת יכולת סיכום המסמכים.
+Sample documents in Hebrew for testing the document summarization feature. The system auto-detects the document type and applies a tailored summarization prompt.
 
-| קובץ | סוג | תיאור |
-|-------|-----|--------|
-| `meeting_summary_startup.md` | סיכום פגישה | פגישת סטטוס סטארטאפ טכנולוגי |
-| `meeting_summary_board.md` | סיכום פגישה | ישיבת דירקטוריון חברה |
-| `medical_discharge_letter.md` | מסמך רפואי | מכתב שחרור מבית חולים (בדיוני) |
-| `medical_referral.md` | מסמך רפואי | הפניה רפואית (בדיונית) |
-| `legal_contract_summary.md` | מסמך משפטי | סיכום חוזה שכירות |
-| `quarterly_report.md` | דוח עסקי | דוח רבעוני של חברה |
-| `project_proposal.md` | הצעת פרויקט | הצעה לפרויקט טכנולוגי |
-| `hr_policy_update.md` | מדיניות | עדכון מדיניות משאבי אנוש |
+| File | Type | Description |
+|------|------|-------------|
+| `meeting_summary_startup.md` | Meeting | Startup team status meeting |
+| `meeting_summary_board.md` | Meeting | Board of directors meeting |
+| `medical_discharge_letter.md` | Medical | Hospital discharge letter (fictional) |
+| `medical_referral.md` | Medical | Medical referral (fictional) |
+| `legal_contract_summary.md` | Legal | Rental contract summary |
+| `quarterly_report.md` | Report | Company quarterly business report |
+| `project_proposal.md` | Proposal | IT project proposal |
+| `hr_policy_update.md` | HR / Policy | Hybrid work policy update |
 
-### שימוש
+### Usage
 ```bash
-# סיכום מסמך בודד
+# Summarize a single document
 python3 localscribe.py --document test_data/documents/meeting_summary_startup.md
 
-# סיכום כל המסמכים בתיקייה
+# Summarize all documents in the folder
 python3 localscribe.py --document-dir test_data/documents/
 ```
 
 ---
 
-**הערה:** כל המסמכים בתיקייה זו הם בדיוניים ונוצרו לצורכי בדיקה בלבד. אין בהם מידע אישי או רגיש אמיתי.
+**Note:** All documents in this directory are fictional and were created solely for testing purposes. They do not contain any real personal or sensitive information.

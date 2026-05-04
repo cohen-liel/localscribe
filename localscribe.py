@@ -68,6 +68,11 @@ MIN_SEGMENT_DURATION = 0.5  # seconds — ignore very short segments
 SUPPORTED_DOC_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".doc", ".rtf", ".html"}
 MAX_DOC_CHARS = 50000  # Maximum characters to send to LLM
 
+# Audio summarization settings
+SUMMARY_CHUNK_SECONDS = 120  # Summarize long meetings in 2-minute windows
+SUMMARY_REDUCE_MAX_CHARS = 24000  # Recursively reduce chunk summaries above this size
+SUMMARY_REDUCE_GROUP_SIZE = 8
+
 
 # ============================================================
 # Dependency Management
@@ -384,18 +389,25 @@ def merge_adjacent_segments(segments: list, max_gap: float = 1.5) -> list:
 # ============================================================
 # Stage 3: Summarization with Local LLM
 # ============================================================
-def format_transcript_with_speakers(segments: list) -> str:
-    """Format the transcribed segments into a readable transcript with speaker labels."""
+def build_speaker_map(segments: list) -> dict:
+    """Create stable human-readable speaker labels for all segments."""
     speaker_map = {}
     speaker_counter = 1
-
-    lines = []
     for seg in segments:
         speaker = seg["speaker"]
         if speaker not in speaker_map:
             speaker_map[speaker] = f"Speaker {speaker_counter}"
             speaker_counter += 1
+    return speaker_map
 
+
+def format_transcript_with_speakers(segments: list, speaker_map: dict = None) -> str:
+    """Format the transcribed segments into a readable transcript with speaker labels."""
+    speaker_map = speaker_map or build_speaker_map(segments)
+
+    lines = []
+    for seg in segments:
+        speaker = seg["speaker"]
         friendly_name = speaker_map[speaker]
         timestamp = format_timestamp(seg["start"])
         lines.append(f"[{timestamp}] **{friendly_name}:** {seg['text']}")
@@ -408,6 +420,97 @@ def format_timestamp(seconds: float) -> str:
     minutes = int(seconds // 60)
     secs = int(seconds % 60)
     return f"{minutes:02d}:{secs:02d}"
+
+
+def format_time_range(start: float, end: float) -> str:
+    """Format a start/end time range as MM:SS-MM:SS."""
+    return f"{format_timestamp(start)}-{format_timestamp(end)}"
+
+
+def run_ollama_prompt(prompt: str, timeout: int = 180) -> str:
+    """Run the configured local LLM and return cleaned text output."""
+    result = subprocess.run(
+        ["ollama", "run", OLLAMA_MODEL, "--hidethinking", "--think", "false", "--nowordwrap", prompt],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    return clean_llm_output(result.stdout)
+
+
+def split_text_by_durations(text: str, durations: list) -> list:
+    """Split text proportionally by time durations when word timestamps are unavailable."""
+    if len(durations) <= 1:
+        return [text]
+
+    words = text.split()
+    if len(words) < len(durations):
+        return [text] + [""] * (len(durations) - 1)
+
+    total_duration = sum(durations)
+    total_words = len(words)
+    parts = []
+    cursor = 0
+
+    for i, duration in enumerate(durations):
+        remaining_windows = len(durations) - i
+        remaining_words = total_words - cursor
+        if i == len(durations) - 1:
+            word_count = remaining_words
+        else:
+            proportional_count = round(total_words * (duration / total_duration))
+            word_count = max(1, proportional_count)
+            word_count = min(word_count, remaining_words - (remaining_windows - 1))
+
+        parts.append(" ".join(words[cursor:cursor + word_count]))
+        cursor += word_count
+
+    return parts
+
+
+def split_segments_for_summary_windows(segments: list, chunk_seconds: int) -> list:
+    """
+    Split long transcribed segments on summary-window boundaries.
+    The text split is proportional because Whisper word timestamps are not stored.
+    """
+    split_segments = []
+
+    for seg in segments:
+        start = seg["start"]
+        end = seg["end"]
+        if end <= start:
+            split_segments.append(seg)
+            continue
+
+        first_window = int(start // chunk_seconds)
+        last_window = int((end - 0.001) // chunk_seconds)
+        if first_window == last_window:
+            split_segments.append(seg)
+            continue
+
+        ranges = []
+        for window in range(first_window, last_window + 1):
+            part_start = max(start, window * chunk_seconds)
+            part_end = min(end, (window + 1) * chunk_seconds)
+            if part_end > part_start:
+                ranges.append((part_start, part_end))
+
+        text_parts = split_text_by_durations(
+            seg.get("text", ""),
+            [part_end - part_start for part_start, part_end in ranges],
+        )
+
+        for (part_start, part_end), text_part in zip(ranges, text_parts):
+            if not text_part.strip():
+                continue
+            split_seg = seg.copy()
+            split_seg["start"] = part_start
+            split_seg["end"] = part_end
+            split_seg["duration"] = part_end - part_start
+            split_seg["text"] = text_part.strip()
+            split_segments.append(split_seg)
+
+    return split_segments
 
 
 def summarize_with_speakers(transcript: str, num_speakers: int):
@@ -448,6 +551,15 @@ Topics raised but not resolved, only if explicit.
 If none were stated, write: לא הוגדרו נושאים פתוחים.
 
 Avoid inventing agenda, unresolved issues, decisions, owners, or deadlines.
+Action items must be explicit future tasks assigned or requested in the transcript.
+Do not list things that already happened, such as speakers presenting background.
+Do not list "present background", "explain the issue", "clarify the topic",
+or "let a speaker speak" as action items unless they are scheduled as future work.
+When unsure whether something is an action item, write: לא הוגדרו פריטי פעולה.
+Decisions must be explicit approvals, votes, or clear stated decisions.
+Do not turn explanations, claims, or recommendations into decisions.
+Open topics must be explicit unresolved questions or deferred items, not general background.
+When unsure whether something is an open topic, write: לא הוגדרו נושאים פתוחים.
 Use the exact Hebrew section headings above.
 Do not add any extra sections or labels beyond the requested section headings.
 
@@ -460,20 +572,257 @@ Summarize professionally and clearly:"""
 
     start_time = time.time()
 
-    result = subprocess.run(
-        ["ollama", "run", OLLAMA_MODEL, "--hidethinking", "--think", "false", "--nowordwrap", prompt],
-        capture_output=True,
-        text=True,
-        timeout=180,
-    )
-
+    summary = run_ollama_prompt(prompt, timeout=180)
     elapsed = time.time() - start_time
-    summary = clean_llm_output(result.stdout)
 
     print(f"   Summarization complete in {elapsed:.1f}s")
     print()
 
     return summary
+
+
+def chunk_segments_by_time(
+    segments: list,
+    speaker_map: dict,
+    chunk_seconds: int = SUMMARY_CHUNK_SECONDS,
+) -> list:
+    """Group transcribed segments into fixed time windows for long-meeting summaries."""
+    if not segments:
+        return []
+
+    segments = split_segments_for_summary_windows(segments, chunk_seconds)
+
+    chunks = []
+    current_segments = []
+    current_window = int(segments[0]["start"] // chunk_seconds)
+
+    for seg in segments:
+        window = int(seg["start"] // chunk_seconds)
+        if current_segments and window != current_window:
+            chunks.append({
+                "start": current_segments[0]["start"],
+                "end": current_segments[-1]["end"],
+                "segments": current_segments,
+                "transcript": format_transcript_with_speakers(current_segments, speaker_map),
+            })
+            current_segments = []
+            current_window = window
+
+        current_segments.append(seg)
+
+    if current_segments:
+        chunks.append({
+            "start": current_segments[0]["start"],
+            "end": current_segments[-1]["end"],
+            "segments": current_segments,
+            "transcript": format_transcript_with_speakers(current_segments, speaker_map),
+        })
+
+    return chunks
+
+
+def summarize_transcript_chunk(chunk: dict, chunk_index: int, total_chunks: int, num_speakers: int) -> str:
+    """Summarize one time-bounded transcript chunk."""
+    time_range = format_time_range(chunk["start"], chunk["end"])
+    prompt = f"""/no_think
+You are summarizing one time-bounded part of a longer Hebrew audio transcript.
+This is chunk {chunk_index} of {total_chunks}, covering {time_range}.
+The full audio has {num_speakers} labeled speakers.
+
+Provide a compact Hebrew chunk summary. Preserve speaker labels when useful.
+Do not infer names, gender, decisions, tasks, or deadlines unless they are explicit.
+Action items must be explicit future tasks assigned or requested in this chunk.
+Do not list things that already happened, such as speakers presenting background.
+Do not list "present background", "explain the issue", "clarify the topic",
+or "let a speaker speak" as action items unless they are scheduled as future work.
+When unsure whether something is an action item, write: לא הוגדרו פריטי פעולה.
+Decisions must be explicit approvals, votes, or clear stated decisions.
+Do not turn explanations, claims, or recommendations into decisions.
+Open topics must be explicit unresolved questions or deferred items, not general background.
+When unsure whether something is an open topic, write: לא הוגדרו נושאים פתוחים.
+
+Use exactly these sections:
+
+## תמצית החלק
+2-4 sentences about what happened in this time window.
+
+## נקודות לפי דוברים
+Short bullets only for meaningful speaker-specific points.
+
+## פריטי פעולה
+Only explicit action items. If none, write: לא הוגדרו פריטי פעולה.
+
+## החלטות
+Only explicit decisions. If none, write: לא התקבלו החלטות.
+
+## נושאים פתוחים
+Only explicit unresolved topics. If none, write: לא הוגדרו נושאים פתוחים.
+
+---
+Transcript chunk:
+{chunk["transcript"]}
+---
+
+Summarize this chunk professionally and clearly:"""
+    return run_ollama_prompt(prompt, timeout=180)
+
+
+def format_summary_units_for_prompt(summary_units: list) -> str:
+    """Format chunk or reduced summaries for the next summarization level."""
+    blocks = []
+    for i, unit in enumerate(summary_units, start=1):
+        time_range = format_time_range(unit["start"], unit["end"])
+        blocks.append(f"### חלק {i} ({time_range})\n{unit['summary']}")
+    return "\n\n".join(blocks)
+
+
+def summary_units_char_count(summary_units: list) -> int:
+    """Count summary text characters for recursive reduction decisions."""
+    return sum(len(unit["summary"]) for unit in summary_units)
+
+
+def reduce_summary_group(group: list, level: int, group_index: int, total_groups: int) -> dict:
+    """Compress a group of chunk summaries into one intermediate summary."""
+    time_range = format_time_range(group[0]["start"], group[-1]["end"])
+    prompt = f"""/no_think
+You are compressing intermediate Hebrew summaries from a long audio transcript.
+This is reduction level {level}, group {group_index} of {total_groups}, covering {time_range}.
+
+Merge the summaries below into one compact Hebrew intermediate summary.
+Keep explicit decisions, action items, unresolved topics, and important speaker-specific points.
+Do not invent details that are not present in the summaries.
+Preserve action items only when they are explicit future tasks assigned or requested.
+Drop vague or already-completed items such as presenting background or explaining a topic.
+Preserve decisions only when they are explicit approvals, votes, or clear stated decisions.
+
+---
+Intermediate summaries:
+{format_summary_units_for_prompt(group)}
+---
+
+Return a compact structured summary in Hebrew:"""
+
+    return {
+        "start": group[0]["start"],
+        "end": group[-1]["end"],
+        "summary": run_ollama_prompt(prompt, timeout=240),
+    }
+
+
+def reduce_summaries_recursively(summary_units: list) -> list:
+    """Recursively reduce summary units until the final prompt is small enough."""
+    level = 1
+    while (
+        len(summary_units) > 1
+        and summary_units_char_count(summary_units) > SUMMARY_REDUCE_MAX_CHARS
+    ):
+        groups = [
+            summary_units[i:i + SUMMARY_REDUCE_GROUP_SIZE]
+            for i in range(0, len(summary_units), SUMMARY_REDUCE_GROUP_SIZE)
+        ]
+        print(
+            f"   Reducing summaries level {level}: "
+            f"{len(summary_units)} -> {len(groups)} groups"
+        )
+
+        reduced = []
+        for i, group in enumerate(groups, start=1):
+            reduced.append(reduce_summary_group(group, level, i, len(groups)))
+        summary_units = reduced
+        level += 1
+
+    return summary_units
+
+
+def summarize_from_summary_units(summary_units: list, num_speakers: int) -> str:
+    """Create the final meeting summary from chunk or reduced summaries."""
+    prompt = f"""/no_think
+You are a professional audio transcript summarizer.
+You received structured summaries of a Hebrew audio transcript with {num_speakers} labeled speakers.
+The summaries are ordered by time and may represent 2-minute chunks or recursively reduced groups.
+
+Create the final Hebrew summary for the whole audio.
+Preserve only explicit decisions, action items, unresolved topics, and meaningful speaker-specific points.
+Do not invent agenda, owners, deadlines, decisions, or unresolved issues.
+Action items must be explicit future tasks assigned or requested.
+Do not list things that already happened, such as speakers presenting background.
+Do not list "present background", "explain the issue", "clarify the topic",
+or "let a speaker speak" as action items unless they are scheduled as future work.
+When unsure whether something is an action item, write: לא הוגדרו פריטי פעולה.
+Decisions must be explicit approvals, votes, or clear stated decisions.
+Do not turn explanations, claims, or recommendations into decisions.
+Open topics must be explicit unresolved questions or deferred items, not general background.
+When unsure whether something is an open topic, write: לא הוגדרו נושאים פתוחים.
+Do not infer speaker gender from speaker labels. Refer to speakers as "דובר 1", "דובר 2", etc. when needed.
+
+Use exactly these sections:
+
+## כותרת
+A short, focused Hebrew title (one line)
+
+## סיכום
+3-6 sentences summarizing the whole audio
+
+## פריטי פעולה
+A numbered list only if concrete action items were explicitly stated.
+If none were stated, write: לא הוגדרו פריטי פעולה.
+
+## החלטות שהתקבלו
+A list only if concrete decisions were explicitly stated.
+If none were stated, write: לא התקבלו החלטות.
+
+## נושאים פתוחים
+Topics raised but not resolved, only if explicit.
+If none were stated, write: לא הוגדרו נושאים פתוחים.
+
+---
+Time-ordered summaries:
+{format_summary_units_for_prompt(summary_units)}
+---
+
+Summarize professionally and clearly:"""
+    return run_ollama_prompt(prompt, timeout=240)
+
+
+def summarize_audio_hierarchically(segments: list, num_speakers: int, speaker_map: dict):
+    """
+    Summarize audio with time-window chunk summaries and recursive reduction.
+    Returns the final summary and the first-level chunk summaries for output files.
+    """
+    chunks = chunk_segments_by_time(segments, speaker_map)
+    if len(chunks) <= 1:
+        transcript = format_transcript_with_speakers(segments, speaker_map)
+        return summarize_with_speakers(transcript, num_speakers), []
+
+    print(f"Stage 3: Hierarchical Summarization ({OLLAMA_MODEL})...")
+    print(
+        f"   {len(chunks)} chunks, "
+        f"{SUMMARY_CHUNK_SECONDS // 60}-minute target windows"
+    )
+    print()
+
+    start_time = time.time()
+    chunk_summaries = []
+
+    for i, chunk in enumerate(chunks, start=1):
+        time_range = format_time_range(chunk["start"], chunk["end"])
+        print(f"   Summarizing chunk {i}/{len(chunks)} ({time_range})...")
+        chunk_summaries.append({
+            "index": i,
+            "start": chunk["start"],
+            "end": chunk["end"],
+            "summary": summarize_transcript_chunk(chunk, i, len(chunks), num_speakers),
+        })
+
+    summary_units = reduce_summaries_recursively(chunk_summaries)
+    print("   Creating final summary from chunk summaries...")
+    final_summary = summarize_from_summary_units(summary_units, num_speakers)
+
+    elapsed = time.time() - start_time
+    print(f"   Hierarchical summarization complete in {elapsed:.1f}s")
+    print()
+
+    return final_summary, chunk_summaries
 
 
 # ============================================================
@@ -974,15 +1323,35 @@ def process_document_dir(dir_path: str):
 # ============================================================
 # Output & Results (Audio)
 # ============================================================
-def save_results(audio_path: str, segments: list, transcript: str, summary: str):
+def save_results(
+    audio_path: str,
+    segments: list,
+    transcript: str,
+    summary: str,
+    summary_chunks: list = None,
+):
     """Save all results to organized output files."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_name = Path(audio_path).stem
+    summary_chunks = summary_chunks or []
 
     # Count speakers
     unique_speakers = set(seg["speaker"] for seg in segments)
     num_speakers = len(unique_speakers)
+
+    chunk_section = ""
+    if summary_chunks:
+        chunk_blocks = []
+        for chunk in summary_chunks:
+            time_range = format_time_range(chunk["start"], chunk["end"])
+            chunk_blocks.append(f"### Chunk {chunk['index']} ({time_range})\n\n{chunk['summary']}")
+        chunk_section = (
+            "\n---\n\n"
+            "## Intermediate Chunk Summaries\n\n"
+            + "\n\n".join(chunk_blocks)
+            + "\n"
+        )
 
     # Markdown output
     md_file = OUTPUT_DIR / f"{base_name}_{timestamp}.md"
@@ -996,6 +1365,7 @@ def save_results(audio_path: str, segments: list, transcript: str, summary: str)
 ---
 
 {summary}
+{chunk_section}
 
 ---
 
@@ -1018,10 +1388,13 @@ def save_results(audio_path: str, segments: list, transcript: str, summary: str)
                 "transcription": WHISPER_MODEL,
                 "summarization": OLLAMA_MODEL,
             },
+            "summary_mode": "hierarchical" if summary_chunks else "single_pass",
+            "summary_chunk_seconds": SUMMARY_CHUNK_SECONDS if summary_chunks else None,
         },
         "segments": segments,
         "transcript": transcript,
         "summary": summary,
+        "summary_chunks": summary_chunks,
     }
     json_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -1124,12 +1497,17 @@ def process_audio(audio_path: str, hf_token: str, num_speakers: int = None):
         print("[ERROR] Transcription failed")
         return
 
-    # Format transcript with speaker labels
-    transcript = format_transcript_with_speakers(transcribed_segments)
+    # Format transcript with stable speaker labels
+    speaker_map = build_speaker_map(transcribed_segments)
+    transcript = format_transcript_with_speakers(transcribed_segments, speaker_map)
     unique_speakers = set(seg["speaker"] for seg in transcribed_segments)
 
     # Stage 3: Summarization
-    summary = summarize_with_speakers(transcript, len(unique_speakers))
+    summary, summary_chunks = summarize_audio_hierarchically(
+        transcribed_segments,
+        len(unique_speakers),
+        speaker_map,
+    )
 
     # Save and display
     total_elapsed = time.time() - total_start
@@ -1138,7 +1516,11 @@ def process_audio(audio_path: str, hf_token: str, num_speakers: int = None):
     print()
 
     md_file, json_file = save_results(
-        audio_path, transcribed_segments, transcript, summary
+        audio_path,
+        transcribed_segments,
+        transcript,
+        summary,
+        summary_chunks,
     )
     display_results(transcript, summary)
 

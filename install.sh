@@ -6,7 +6,66 @@
 # diarization + summarization — all running 100% locally.
 # ============================================================
 
-set -e
+set -euo pipefail
+
+fail() {
+    echo ""
+    echo "  [ERROR] $1"
+    shift || true
+    for line in "$@"; do
+        echo "          $line"
+    done
+    echo ""
+    exit 1
+}
+
+require_command() {
+    local command_name="$1"
+    local install_hint="$2"
+
+    if ! command -v "$command_name" >/dev/null 2>&1; then
+        fail "$command_name is required but was not found." "$install_hint"
+    fi
+}
+
+brew_install_if_missing() {
+    local command_name="$1"
+    local package_name="$2"
+
+    if ! command -v "$command_name" >/dev/null 2>&1; then
+        echo "  Installing $package_name..."
+        if ! brew install "$package_name"; then
+            fail "Homebrew failed to install $package_name." \
+                "Fix Homebrew, then rerun this script." \
+                "Run: brew doctor" \
+                "If Homebrew reports unwritable directories, run:" \
+                "  sudo chown -R \"$(whoami)\" \"$(brew --prefix)\"" \
+                "  sudo chmod -R u+w \"$(brew --prefix)\""
+        fi
+        hash -r 2>/dev/null || true
+    fi
+}
+
+reject_static_ffmpeg_tool() {
+    local command_name="$1"
+    local command_path
+    local real_path
+
+    command_path="$(command -v "$command_name" 2>/dev/null || true)"
+    if [ -z "$command_path" ]; then
+        return
+    fi
+
+    real_path="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$command_path")"
+    case "$real_path" in
+        *".localscribe_env"*|*"static_ffmpeg"*)
+            fail "$command_name points to an old static-ffmpeg install." \
+                "$command_path -> $real_path" \
+                "Remove it with: rm -f \"$HOME/.local/bin/$command_name\"" \
+                "Then install the system package with: brew install ffmpeg"
+            ;;
+    esac
+}
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -23,11 +82,16 @@ fi
 echo "[OK] Apple Silicon Mac detected ($(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo 'Apple Silicon'))"
 echo ""
 
-# Detect SSL MITM proxy (corp Macs sometimes intercept TLS — pip won't trust it)
-PIP_SSL_FLAGS=""
-if [ -n "$HTTPS_PROXY" ] || [ -n "$https_proxy" ]; then
-    echo "[INFO] HTTPS proxy detected — using --trusted-host for pip"
-    PIP_SSL_FLAGS="--trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org"
+# Detect SSL MITM proxy, but do not bypass TLS verification.
+if [ -n "${HTTPS_PROXY:-}" ] || [ -n "${https_proxy:-}" ]; then
+    echo "[INFO] HTTPS proxy detected — pip will still use normal certificate verification"
+fi
+
+# Some managed Python builds point OpenSSL at a stale or private CA bundle.
+# Prefer the macOS system CA bundle when the user has not explicitly selected one.
+if [ -z "${PIP_CERT:-}" ] && [ -z "${SSL_CERT_FILE:-}" ] && [ -r "/etc/ssl/cert.pem" ]; then
+    export PIP_CERT="/etc/ssl/cert.pem"
+    echo "[INFO] Using system CA bundle for pip: $PIP_CERT"
 fi
 echo ""
 
@@ -37,47 +101,35 @@ echo ""
 echo "Step 1: System Tools"
 echo "─────────────────────"
 
-# Homebrew (optional — we have a pip fallback for ffmpeg below)
-HAS_BREW=0
-if command -v brew &> /dev/null && [ -w "$(brew --prefix)/Cellar" 2>/dev/null ]; then
-    HAS_BREW=1
-    echo "  [OK] Homebrew (writable)"
-else
-    echo "  [INFO] Homebrew unavailable or not writable — will use pip fallbacks"
+# Homebrew is required. The installer should not hide a broken system package manager
+# by installing private binary copies inside the Python environment.
+require_command "brew" "Install Homebrew: https://brew.sh"
+
+BREW_PREFIX="$(brew --prefix 2>/dev/null || true)"
+if [ -z "$BREW_PREFIX" ]; then
+    fail "Homebrew is installed but brew --prefix failed." "Run: brew doctor"
 fi
+echo "  [OK] Homebrew ($BREW_PREFIX)"
 
 # Python
 if ! command -v python3 &> /dev/null; then
-    if [ "$HAS_BREW" = "1" ]; then
-        echo "  Installing Python..."
-        brew install python@3.11
-    else
-        echo "  ERROR: python3 not found and Homebrew is not available."
-        echo "         Install Python 3.11+ manually: https://www.python.org/downloads/macos/"
-        exit 1
-    fi
+    echo "  Installing Python..."
+    brew install python@3.12 || brew install python@3.11
+    hash -r 2>/dev/null || true
 fi
 echo "  [OK] Python $(python3 --version 2>&1 | cut -d' ' -f2)"
 
-# ffmpeg — try brew, fall back to pip static-ffmpeg later (after venv exists)
-NEED_STATIC_FFMPEG=0
-if ! command -v ffmpeg &> /dev/null; then
-    if [ "$HAS_BREW" = "1" ]; then
-        echo "  Installing ffmpeg via Homebrew..."
-        brew install ffmpeg
-    else
-        echo "  [INFO] Will install ffmpeg via pip (static-ffmpeg) after venv setup"
-        NEED_STATIC_FFMPEG=1
-    fi
-else
-    echo "  [OK] ffmpeg"
-fi
+reject_static_ffmpeg_tool "ffmpeg"
+reject_static_ffmpeg_tool "ffprobe"
 
-# sox — optional, only used by the legacy --record code path on some setups
-if ! command -v sox &> /dev/null && [ "$HAS_BREW" = "1" ]; then
-    echo "  Installing sox..."
-    brew install sox || echo "  [WARN] sox install failed — recording may be limited"
-fi
+brew_install_if_missing "ffmpeg" "ffmpeg"
+brew_install_if_missing "ffprobe" "ffmpeg"
+
+reject_static_ffmpeg_tool "ffmpeg"
+reject_static_ffmpeg_tool "ffprobe"
+require_command "ffmpeg" "Install with: brew install ffmpeg"
+require_command "ffprobe" "Install with: brew install ffmpeg"
+echo "  [OK] ffmpeg + ffprobe"
 
 echo ""
 
@@ -88,14 +140,11 @@ echo "Step 2: Ollama (Summarization Engine)"
 echo "──────────────────────────────────────"
 
 if ! command -v ollama &> /dev/null; then
-    if [ "$HAS_BREW" = "1" ]; then
-        echo "  Installing Ollama..."
-        brew install ollama
-    else
-        echo "  ERROR: ollama not found. Install from https://ollama.com/download"
-        exit 1
-    fi
+    echo "  Installing Ollama..."
+    brew install ollama
+    hash -r 2>/dev/null || true
 fi
+require_command "ollama" "Install with: brew install ollama"
 echo "  [OK] Ollama installed"
 
 # Start Ollama in the background if not running
@@ -107,9 +156,13 @@ fi
 
 # Default summarization model — change OLLAMA_MODEL in localscribe.py if you prefer another
 DEFAULT_OLLAMA_MODEL="${LOCALSCRIBE_OLLAMA_MODEL:-gemma4:e4b}"
-echo "  Downloading summarization model ($DEFAULT_OLLAMA_MODEL)..."
-ollama pull "$DEFAULT_OLLAMA_MODEL"
-echo "  [OK] Summarization model ready"
+if ollama list | awk 'NR > 1 {print $1}' | grep -Fxq "$DEFAULT_OLLAMA_MODEL"; then
+    echo "  [OK] Summarization model already installed ($DEFAULT_OLLAMA_MODEL)"
+else
+    echo "  Downloading summarization model ($DEFAULT_OLLAMA_MODEL)..."
+    ollama pull "$DEFAULT_OLLAMA_MODEL"
+    echo "  [OK] Summarization model ready"
+fi
 
 echo ""
 
@@ -129,34 +182,20 @@ source ~/.localscribe_env/bin/activate
 echo "  Installing packages (this may take a few minutes)..."
 
 # Upgrade pip
-pip install $PIP_SSL_FLAGS --upgrade pip -q
+pip install --upgrade pip -q
 
-# Persist trusted-hosts to pip config so subsequent installs don't need flags
-if [ -n "$PIP_SSL_FLAGS" ]; then
-    pip config set global.trusted-host "pypi.org files.pythonhosted.org pypi.python.org" >/dev/null 2>&1 || true
+if [ -n "${PIP_CERT:-}" ]; then
+    pip config --site set global.cert "$PIP_CERT" >/dev/null 2>&1 || true
 fi
 
 # Install pinned dependencies (see requirements.txt for why versions are pinned)
-pip install $PIP_SSL_FLAGS -r requirements.txt -q
-echo "  [OK] Core Python packages installed"
-
-# ffmpeg fallback: install static-ffmpeg via pip and symlink into ~/.local/bin
-if [ "$NEED_STATIC_FFMPEG" = "1" ] || ! command -v ffmpeg &> /dev/null; then
-    echo "  Installing static-ffmpeg via pip (Homebrew not available)..."
-    pip install $PIP_SSL_FLAGS static-ffmpeg -q
-    python3 -c "import static_ffmpeg; static_ffmpeg.add_paths()" >/dev/null 2>&1 || true
-    mkdir -p "$HOME/.local/bin"
-    STATIC_FF_DIR="$(python3 -c 'import os, static_ffmpeg; print(os.path.join(os.path.dirname(static_ffmpeg.__file__), "bin", "darwin_arm64"))')"
-    if [ -x "$STATIC_FF_DIR/ffmpeg" ]; then
-        ln -sf "$STATIC_FF_DIR/ffmpeg"  "$HOME/.local/bin/ffmpeg"
-        ln -sf "$STATIC_FF_DIR/ffprobe" "$HOME/.local/bin/ffprobe"
-        echo "  [OK] ffmpeg + ffprobe symlinked into ~/.local/bin"
-        case ":$PATH:" in
-            *":$HOME/.local/bin:"*) ;;
-            *) echo "  [INFO] Add ~/.local/bin to your PATH (e.g. in ~/.zshrc)";;
-        esac
-    fi
+if ! pip install -r requirements.txt -q; then
+    fail "Python dependency installation failed." \
+        "If this is a TLS/certificate issue, install your organization's CA certificate." \
+        "Then configure pip with PIP_CERT or: pip config set global.cert /path/to/ca.pem" \
+        "Do not bypass certificate verification with --trusted-host."
 fi
+echo "  [OK] Core Python packages installed"
 
 echo ""
 

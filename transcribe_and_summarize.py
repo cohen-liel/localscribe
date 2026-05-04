@@ -14,7 +14,7 @@ Requirements:
 
 Installation:
     pip install mlx-whisper
-    brew install ollama
+    brew install ffmpeg ollama
     ollama pull gemma4:e4b   # or any other Ollama model (qwen3:4b, gemma3:4b, ...)
 """
 
@@ -23,6 +23,9 @@ import sys
 import os
 import json
 import time
+import importlib
+import shutil
+import re
 from pathlib import Path
 from datetime import datetime
 
@@ -35,26 +38,59 @@ OLLAMA_MODEL = "gemma4:e4b"  # Summarization — change to any Ollama model you 
 OUTPUT_DIR = Path(__file__).parent / "output"  # Avoids macOS TCC restrictions on ~/Documents
 
 
+def require_package(package_name, import_name=None):
+    """Fail fast if a required Python package is missing."""
+    import_name = import_name or package_name
+    try:
+        importlib.import_module(import_name)
+    except ImportError:
+        print(f"  [ERROR] Missing Python package: {package_name}")
+        print("          Activate the environment and run: pip install -r requirements.txt")
+        sys.exit(1)
+
+
+def require_command(command_name, install_hint):
+    """Fail fast if a required system command is missing."""
+    command_path = shutil.which(command_name)
+    if not command_path:
+        print(f"  [ERROR] Missing system command: {command_name}")
+        print(f"          {install_hint}")
+        sys.exit(1)
+
+    real_path = str(Path(command_path).resolve())
+    if command_name in {"ffmpeg", "ffprobe"} and (
+        ".localscribe_env" in real_path or "static_ffmpeg" in real_path
+    ):
+        print(f"  [ERROR] {command_name} points to an old static-ffmpeg install:")
+        print(f"          {command_path} -> {real_path}")
+        print(f"          Remove it: rm -f {Path.home() / '.local' / 'bin' / command_name}")
+        print("          Then install the system package: brew install ffmpeg")
+        sys.exit(1)
+
+    return command_path
+
+
+def clean_llm_output(text):
+    """Remove Ollama terminal control codes and hidden reasoning blocks."""
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).strip()
+    text = re.sub(r"(?is)<think>.*?</think>", "", text).strip()
+    text = re.sub(r"(?is)^thinking\.\.\..*?\.\.\.done thinking\.\s*", "", text).strip()
+    return text
+
+
 def ensure_dependencies():
     """Verify that all dependencies are installed."""
     print("Checking dependencies...")
 
-    # Check mlx-whisper
-    try:
-        import mlx_whisper
-        print("  [OK] mlx-whisper installed")
-    except ImportError:
-        print("  [MISSING] mlx-whisper not installed. Installing...")
-        subprocess.run([sys.executable, "-m", "pip", "install", "mlx-whisper"], check=True)
-        print("  [OK] mlx-whisper installed successfully")
+    require_package("mlx-whisper", "mlx_whisper")
+    print("  [OK] mlx-whisper installed")
+
+    require_command("ffmpeg", "Install with: brew install ffmpeg")
+    require_command("ffprobe", "Install with: brew install ffmpeg")
+    print("  [OK] ffmpeg + ffprobe")
 
     # Check Ollama
-    result = subprocess.run(["which", "ollama"], capture_output=True, text=True)
-    if result.returncode != 0:
-        print("  [ERROR] Ollama not installed!")
-        print("          Install with: brew install ollama")
-        print("          Or download from: https://ollama.com/download")
-        sys.exit(1)
+    require_command("ollama", "Install with: brew install ollama")
     print("  [OK] Ollama installed")
 
     # Check that the model exists
@@ -84,24 +120,15 @@ def record_audio(duration_seconds=None):
     print()
 
     try:
-        cmd = ["rec", "-r", "16000", "-c", "1", "-b", "16", str(output_file)]
+        cmd = ["ffmpeg", "-y"]
         if duration_seconds:
-            cmd.extend(["trim", "0", str(duration_seconds)])
-
-        # Try sox/rec first; if not available, fall back to ffmpeg
-        try:
-            process = subprocess.run(cmd, check=True)
-        except FileNotFoundError:
-            # Fallback: use ffmpeg
-            cmd = [
-                "ffmpeg", "-f", "avfoundation", "-i", ":0",
-                "-ar", "16000", "-ac", "1",
-                str(output_file)
-            ]
-            if duration_seconds:
-                cmd.insert(1, "-t")
-                cmd.insert(2, str(duration_seconds))
-            process = subprocess.run(cmd, check=True)
+            cmd.extend(["-t", str(duration_seconds)])
+        cmd.extend([
+            "-f", "avfoundation", "-i", ":0",
+            "-ar", "16000", "-ac", "1",
+            str(output_file),
+        ])
+        subprocess.run(cmd, check=True)
 
     except KeyboardInterrupt:
         print("\nRecording stopped")
@@ -155,15 +182,34 @@ def summarize_text(transcript):
     """
     Summarize the text using a local language model (Ollama).
     """
-    print(f"Summarizing meeting with {OLLAMA_MODEL}...")
+    print(f"Summarizing transcript with {OLLAMA_MODEL}...")
     print()
 
-    prompt = f"""You are a meeting summarizer. You received a transcript of a meeting in Hebrew.
-Provide:
-1. **Title** — a short name for the meeting (one line)
-2. **Summary** — 3-5 sentences summarizing the key points
-3. **Action Items** — a numbered list of things to do
-4. **Decisions Made** — if any
+    prompt = f"""/no_think
+You are a professional audio transcript summarizer. You received a Hebrew transcript.
+The audio may be a meeting, lesson, social exchange, interview, or language-practice recording.
+Do not force a business-meeting frame when the transcript is not a business meeting.
+Do not infer speaker gender from speaker labels.
+
+Provide in natural Hebrew:
+
+## כותרת
+A short, focused Hebrew title (one line)
+
+## סיכום
+3-5 sentences summarizing the actual content
+
+## פריטי פעולה
+A numbered list only if concrete action items were explicitly stated.
+If none were stated, write: לא הוגדרו פריטי פעולה.
+
+## החלטות שהתקבלו
+A list only if concrete decisions were explicitly stated.
+If none were stated, write: לא התקבלו החלטות.
+
+Avoid inventing agenda, unresolved issues, decisions, owners, or deadlines.
+Use the exact Hebrew section headings above.
+Do not add any extra sections or labels beyond the requested section headings.
 
 The transcript:
 ---
@@ -176,19 +222,19 @@ Summarize in Hebrew:"""
     start_time = time.time()
 
     result = subprocess.run(
-        ["ollama", "run", OLLAMA_MODEL, prompt],
+        ["ollama", "run", OLLAMA_MODEL, "--hidethinking", "--think", "false", "--nowordwrap", prompt],
         capture_output=True,
         text=True,
         timeout=120
     )
 
     elapsed = time.time() - start_time
-    summary = result.stdout.strip()
+    summary = clean_llm_output(result.stdout)
 
     print(f"Summarization complete in {elapsed:.1f}s!")
     print()
     print("=" * 50)
-    print("Meeting Summary:")
+    print("Transcript Summary:")
     print("=" * 50)
     print(summary)
     print("=" * 50)
@@ -203,9 +249,9 @@ def save_results(audio_path, transcript, summary):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # Save as Markdown
-    md_file = OUTPUT_DIR / f"meeting_{timestamp}.md"
+    md_file = OUTPUT_DIR / f"summary_{timestamp}.md"
 
-    content = f"""# Meeting Summary
+    content = f"""# Transcript Summary
 **Date:** {datetime.now().strftime("%Y-%m-%d %H:%M")}
 **Source file:** {Path(audio_path).name}
 

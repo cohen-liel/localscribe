@@ -81,6 +81,7 @@ No cloud. No API keys for transcription. No data leaves your machine. Ever.
 
 - Mac with Apple Silicon (M1 / M2 / M3 / M4)
 - macOS 13+ (Ventura or later)
+- Working Homebrew installation
 - ~8 GB free disk space (for models)
 - Free HuggingFace account (for speaker diarization model)
 
@@ -97,9 +98,7 @@ chmod +x install.sh
 
 ```bash
 # 1. System tools
-brew install ffmpeg sox ollama
-# If you can't use Homebrew, install python+ollama manually and rely on the
-# pip-based static-ffmpeg fallback (install.sh handles this automatically).
+brew install ffmpeg ollama
 
 # 2. Summarization model — pick any Ollama model you like
 ollama serve &
@@ -109,8 +108,8 @@ ollama pull gemma4:e4b      # default; alternatives: qwen3:4b, gemma3:4b, qwen3:
 python3 -m venv ~/.localscribe_env
 source ~/.localscribe_env/bin/activate
 pip install -r requirements.txt
-# On Macs with a corp SSL MITM proxy add:
-#   --trusted-host pypi.org --trusted-host files.pythonhosted.org
+# On Macs with a corp SSL MITM proxy, configure your organization CA for pip:
+#   pip config set global.cert /etc/ssl/cert.pem
 
 # 4. HuggingFace Token (free, required for speaker diarization)
 #    Create token: https://huggingface.co/settings/tokens
@@ -285,12 +284,14 @@ localscribe/
 
 ## Troubleshooting
 
-**Pip SSL errors (`CERTIFICATE_VERIFY_FAILED`)** — your network is intercepting TLS (common on corporate Macs). Use:
+**Pip SSL errors (`CERTIFICATE_VERIFY_FAILED`)** — your network is intercepting TLS (common on corporate Macs). Install your organization's CA certificate and point pip at it:
 ```bash
-pip install -r requirements.txt --trusted-host pypi.org --trusted-host files.pythonhosted.org
+pip config set global.cert /etc/ssl/cert.pem
+pip install -r requirements.txt
 ```
+Avoid `--trusted-host`; it bypasses certificate verification instead of fixing trust.
 
-**`brew install` fails with "not writable"** — fix permissions, or skip brew and let `install.sh` use its `static-ffmpeg` pip fallback. To repair brew: `sudo chown -R $(whoami) /opt/homebrew`.
+**`brew install` fails with "not writable"** — fix Homebrew ownership and rerun `brew doctor`; LocalScribe does not install private ffmpeg copies. Common Apple Silicon repair: `sudo chown -R "$(whoami)" /opt/homebrew && sudo chmod -R u+w /opt/homebrew`.
 
 **ffprobe is killed (`exit -9`) when called from Python** — endpoint security tools (e.g. Santa) block unsigned binaries spawned from Python. LocalScribe v2.0 already avoids `pydub`/`ffprobe` and reads audio with `ffmpeg + soundfile` instead, so this only affects custom scripts.
 

@@ -43,6 +43,8 @@ import time
 import tempfile
 import warnings
 import re
+import importlib
+import shutil
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -70,20 +72,45 @@ MAX_DOC_CHARS = 50000  # Maximum characters to send to LLM
 # ============================================================
 # Dependency Management
 # ============================================================
-def check_and_install(package_name: str, import_name: str = None):
-    """Check if a package is installed; install it if missing."""
+def require_package(package_name: str, import_name: str = None):
+    """Fail fast if a required Python package is missing."""
     import_name = import_name or package_name
     try:
-        __import__(import_name)
+        importlib.import_module(import_name)
         return True
     except ImportError:
-        print(f"  Installing {package_name}...")
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", package_name, "-q"],
-            check=True,
-            capture_output=True,
-        )
-        return True
+        print(f"  [ERROR] Missing Python package: {package_name}")
+        print("          Activate the environment and run: pip install -r requirements.txt")
+        sys.exit(1)
+
+
+def require_command(command_name: str, install_hint: str):
+    """Fail fast if a required system command is missing."""
+    command_path = shutil.which(command_name)
+    if not command_path:
+        print(f"  [ERROR] Missing system command: {command_name}")
+        print(f"          {install_hint}")
+        sys.exit(1)
+
+    real_path = str(Path(command_path).resolve())
+    if command_name in {"ffmpeg", "ffprobe"} and (
+        ".localscribe_env" in real_path or "static_ffmpeg" in real_path
+    ):
+        print(f"  [ERROR] {command_name} points to an old static-ffmpeg install:")
+        print(f"          {command_path} -> {real_path}")
+        print(f"          Remove it: rm -f {Path.home() / '.local' / 'bin' / command_name}")
+        print("          Then install the system package: brew install ffmpeg")
+        sys.exit(1)
+
+    return command_path
+
+
+def clean_llm_output(text: str) -> str:
+    """Remove Ollama terminal control codes and hidden reasoning blocks."""
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).strip()
+    text = re.sub(r"(?is)<think>.*?</think>", "", text).strip()
+    text = re.sub(r"(?is)^thinking\.\.\..*?\.\.\.done thinking\.\s*", "", text).strip()
+    return text
 
 
 def get_hf_token() -> Optional[str]:
@@ -139,15 +166,15 @@ def ensure_dependencies(mode: str = "audio"):
 
     if mode == "audio":
         # Core packages for audio mode
-        check_and_install("mlx-whisper", "mlx_whisper")
+        require_package("mlx-whisper", "mlx_whisper")
         print("  [OK] mlx-whisper (transcription)")
 
-        check_and_install("torch", "torch")
-        check_and_install("torchaudio", "torchaudio")
-        check_and_install("pyannote.audio", "pyannote")
+        require_package("torch", "torch")
+        require_package("torchaudio", "torchaudio")
+        require_package("pyannote.audio", "pyannote.audio")
         print("  [OK] pyannote.audio (speaker diarization)")
 
-        check_and_install("soundfile", "soundfile")
+        require_package("soundfile", "soundfile")
         print("  [OK] soundfile (audio processing)")
 
         # Check HuggingFace token
@@ -159,19 +186,17 @@ def ensure_dependencies(mode: str = "audio"):
                 sys.exit(1)
         print("  [OK] HuggingFace Token")
 
-        # Check ffmpeg
-        result = subprocess.run(["which", "ffmpeg"], capture_output=True, text=True)
-        if result.returncode != 0:
-            print("  [WARN] ffmpeg not installed — install with: brew install ffmpeg")
-        else:
-            print("  [OK] ffmpeg")
+        require_command("ffmpeg", "Install with: brew install ffmpeg")
+        require_command("ffprobe", "Install with: brew install ffmpeg")
+        print("  [OK] ffmpeg + ffprobe")
+
+    if mode == "document":
+        require_package("pdfplumber", "pdfplumber")
+        require_package("python-docx", "docx")
+        print("  [OK] Document parsing (pdfplumber + python-docx)")
 
     # Check Ollama (needed for both modes)
-    result = subprocess.run(["which", "ollama"], capture_output=True, text=True)
-    if result.returncode != 0:
-        print("  [ERROR] Ollama not installed!")
-        print("          Install with: brew install ollama")
-        sys.exit(1)
+    require_command("ollama", "Install with: brew install ollama")
     print("  [OK] Ollama (summarization)")
 
     # Check Ollama model
@@ -377,37 +402,44 @@ def format_timestamp(seconds: float) -> str:
 
 def summarize_with_speakers(transcript: str, num_speakers: int):
     """
-    Summarize the meeting transcript using a local LLM (Ollama).
+    Summarize the audio transcript using a local LLM (Ollama).
     The prompt leverages speaker information for better summaries.
     """
     print(f"Stage 3: Smart Summarization ({OLLAMA_MODEL})...")
     print()
 
     prompt = f"""/no_think
-You are a professional meeting summarizer. You received a transcript of a meeting in Hebrew with {num_speakers} participants.
+You are a professional audio transcript summarizer. You received a Hebrew transcript with {num_speakers} labeled speakers.
 Each speaker is labeled (Speaker 1, Speaker 2, etc.).
 
-The transcript is in Hebrew. Provide your summary in Hebrew.
+The audio may be a meeting, lesson, social exchange, interview, or language-practice recording.
+First infer the content type from the transcript. Do not force a business-meeting frame when the transcript is not a business meeting.
+Provide your summary in natural Hebrew.
+Do not infer speaker gender from speaker labels. Refer to speakers as "דובר 1", "דובר 2", etc. when needed.
 
 Provide the following:
 
-## Title
-A short, focused name for the meeting (one line)
+## כותרת
+A short, focused Hebrew title (one line)
 
-## Summary
-3-5 sentences summarizing the key points of the meeting
+## סיכום
+3-5 sentences summarizing the actual content
 
-## Action Items
-A numbered list. For each item include:
-- Who is responsible (by speaker number)
-- What needs to be done
-- Deadline (if mentioned)
+## פריטי פעולה
+A numbered list only if concrete action items were explicitly stated.
+If none were stated, write: לא הוגדרו פריטי פעולה.
 
-## Decisions Made
-A list of decisions made during the meeting (if any)
+## החלטות שהתקבלו
+A list only if concrete decisions were explicitly stated.
+If none were stated, write: לא התקבלו החלטות.
 
-## Open Issues
-Topics raised but not resolved (if any)
+## נושאים פתוחים
+Topics raised but not resolved, only if explicit.
+If none were stated, write: לא הוגדרו נושאים פתוחים.
+
+Avoid inventing agenda, unresolved issues, decisions, owners, or deadlines.
+Use the exact Hebrew section headings above.
+Do not add any extra sections or labels beyond the requested section headings.
 
 ---
 Transcript:
@@ -419,18 +451,14 @@ Summarize professionally and clearly:"""
     start_time = time.time()
 
     result = subprocess.run(
-        ["ollama", "run", OLLAMA_MODEL, prompt],
+        ["ollama", "run", OLLAMA_MODEL, "--hidethinking", "--think", "false", "--nowordwrap", prompt],
         capture_output=True,
         text=True,
         timeout=180,
     )
 
     elapsed = time.time() - start_time
-    summary = result.stdout.strip()
-
-    # Remove thinking tags if present (Qwen3 sometimes outputs them)
-    if "<think>" in summary:
-        summary = re.sub(r"<think>.*?</think>", "", summary, flags=re.DOTALL).strip()
+    summary = clean_llm_output(result.stdout)
 
     print(f"   Summarization complete in {elapsed:.1f}s")
     print()
@@ -726,7 +754,6 @@ def read_document(file_path: str) -> str:
 
     elif ext == ".pdf":
         try:
-            check_and_install("pdfplumber")
             import pdfplumber
             text_parts = []
             with pdfplumber.open(str(path)) as pdf:
@@ -735,25 +762,20 @@ def read_document(file_path: str) -> str:
                     if page_text:
                         text_parts.append(page_text)
             return "\n\n".join(text_parts)
-        except Exception:
-            # Fallback to pdftotext CLI
-            try:
-                result = subprocess.run(
-                    ["pdftotext", str(path), "-"],
-                    capture_output=True, text=True, timeout=30
-                )
-                return result.stdout
-            except Exception as e:
-                raise RuntimeError(f"Cannot read PDF: {e}")
+        except ImportError as e:
+            raise RuntimeError("Cannot read PDF: pdfplumber is not installed") from e
+        except Exception as e:
+            raise RuntimeError(f"Cannot read PDF: {e}") from e
 
     elif ext in {".docx", ".doc"}:
         try:
-            check_and_install("python-docx", "docx")
             import docx
             doc = docx.Document(str(path))
             return "\n\n".join(para.text for para in doc.paragraphs if para.text.strip())
+        except ImportError as e:
+            raise RuntimeError("Cannot read DOCX: python-docx is not installed") from e
         except Exception as e:
-            raise RuntimeError(f"Cannot read DOCX: {e}")
+            raise RuntimeError(f"Cannot read DOCX: {e}") from e
 
     elif ext == ".html":
         try:
@@ -791,18 +813,14 @@ def summarize_document(text: str, doc_type: str):
     start_time = time.time()
 
     result = subprocess.run(
-        ["ollama", "run", OLLAMA_MODEL, prompt],
+        ["ollama", "run", OLLAMA_MODEL, "--hidethinking", "--think", "false", "--nowordwrap", prompt],
         capture_output=True,
         text=True,
         timeout=300,
     )
 
     elapsed = time.time() - start_time
-    summary = result.stdout.strip()
-
-    # Remove thinking tags if present
-    if "<think>" in summary:
-        summary = re.sub(r"<think>.*?</think>", "", summary, flags=re.DOTALL).strip()
+    summary = clean_llm_output(result.stdout)
 
     print(f"   Summarization complete in {elapsed:.1f}s")
     print()
@@ -958,7 +976,7 @@ def save_results(audio_path: str, segments: list, transcript: str, summary: str)
 
     # Markdown output
     md_file = OUTPUT_DIR / f"{base_name}_{timestamp}.md"
-    md_content = f"""# Meeting Summary — LocalScribe
+    md_content = f"""# Audio Summary — LocalScribe
 
 **Processed:** {datetime.now().strftime("%Y-%m-%d %H:%M")}
 **Source file:** {Path(audio_path).name}
@@ -1009,7 +1027,7 @@ def display_results(transcript: str, summary: str):
     """Display results in the terminal."""
     print()
     print("=" * 60)
-    print("Meeting Summary:")
+    print("Audio Summary:")
     print("=" * 60)
     print()
     print(summary)
@@ -1047,21 +1065,14 @@ def record_audio(duration_seconds: int = None) -> Optional[str]:
     print()
 
     try:
-        # Try sox/rec first, then ffmpeg
-        try:
-            cmd = ["rec", "-r", "16000", "-c", "1", "-b", "16", str(output_file)]
-            if duration_seconds:
-                cmd.extend(["trim", "0", str(duration_seconds)])
-            subprocess.run(cmd, check=True)
-        except FileNotFoundError:
-            cmd = [
-                "ffmpeg", "-f", "avfoundation", "-i", ":0",
-                "-ar", "16000", "-ac", "1", str(output_file),
-            ]
-            if duration_seconds:
-                cmd.insert(1, "-t")
-                cmd.insert(2, str(duration_seconds))
-            subprocess.run(cmd, check=True)
+        cmd = ["ffmpeg", "-y"]
+        if duration_seconds:
+            cmd.extend(["-t", str(duration_seconds)])
+        cmd.extend([
+            "-f", "avfoundation", "-i", ":0",
+            "-ar", "16000", "-ac", "1", str(output_file),
+        ])
+        subprocess.run(cmd, check=True)
     except KeyboardInterrupt:
         print("\nRecording stopped")
 

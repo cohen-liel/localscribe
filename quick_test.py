@@ -13,6 +13,7 @@ import subprocess
 import sys
 import os
 import time
+import re
 
 # Configuration (must match localscribe.py)
 OLLAMA_MODEL = "gemma4:e4b"
@@ -35,6 +36,14 @@ SAMPLE_TRANSCRIPT_WITH_SPEAKERS = """
 [01:58] **Speaker 4:** Right, interviews are on Monday and Tuesday. I'll send everyone the resumes today.
 [02:10] **Speaker 1:** Okay, to summarize: launch on May 25, Dana finishes design by Tuesday, Michal sends texts tomorrow, Ori updates campaigns by Thursday, and interviews next week. Thanks everyone!
 """
+
+
+def clean_llm_output(text: str) -> str:
+    """Remove Ollama terminal control codes and hidden reasoning blocks."""
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).strip()
+    text = re.sub(r"(?is)<think>.*?</think>", "", text).strip()
+    text = re.sub(r"(?is)^thinking\.\.\..*?\.\.\.done thinking\.\s*", "", text).strip()
+    return text
 
 
 def check_component(name: str, check_fn) -> bool:
@@ -92,11 +101,21 @@ def test_full_pipeline():
         import soundfile  # noqa: F401
     all_ok &= check_component("soundfile (audio processing)", check_soundfile)
 
-    # Check ffmpeg
+    # Check ffmpeg/ffprobe
     def check_ffmpeg():
-        result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True)
-        assert result.returncode == 0
-    all_ok &= check_component("ffmpeg", check_ffmpeg)
+        from pathlib import Path
+        import shutil
+
+        for command in ("ffmpeg", "ffprobe"):
+            command_path = shutil.which(command)
+            assert command_path, f"{command} not found"
+            real_path = str(Path(command_path).resolve())
+            assert ".localscribe_env" not in real_path and "static_ffmpeg" not in real_path, (
+                f"{command} points to old static-ffmpeg install: {command_path} -> {real_path}"
+            )
+            result = subprocess.run([command, "-version"], capture_output=True, text=True)
+            assert result.returncode == 0
+    all_ok &= check_component("ffmpeg + ffprobe", check_ffmpeg)
 
     # Check HF token
     def check_hf_token():
@@ -164,19 +183,14 @@ Summarize professionally and clearly:"""
     start_time = time.time()
 
     result = subprocess.run(
-        ["ollama", "run", OLLAMA_MODEL, prompt],
+        ["ollama", "run", OLLAMA_MODEL, "--hidethinking", "--think", "false", "--nowordwrap", prompt],
         capture_output=True,
         text=True,
         timeout=120,
     )
 
     elapsed = time.time() - start_time
-    summary = result.stdout.strip()
-
-    # Remove thinking tags if present (Qwen3 sometimes outputs them)
-    if "<think>" in summary:
-        import re
-        summary = re.sub(r"<think>.*?</think>", "", summary, flags=re.DOTALL).strip()
+    summary = clean_llm_output(result.stdout)
 
     print(f"  [OK] Summarization complete in {elapsed:.1f}s")
     print()

@@ -1,8 +1,10 @@
 # LocalScribe v2.0 - Dependencies
 # Install: pip install -r requirements.txt
 #
-# Note for Meta corp Macs (or any Mac with SSL MITM proxy):
-#   pip install -r requirements.txt --trusted-host pypi.org --trusted-host files.pythonhosted.org
+# Note for corp Macs with TLS interception:
+#   configure your organization CA for pip (PIP_CERT or global.cert).
+#   Do not bypass certificate verification with --trusted-host.
+#   On macOS, the system bundle is usually: /etc/ssl/cert.pem
 
 # Transcription (Hebrew ASR on Apple Silicon)
 mlx-whisper>=0.4.0
@@ -28,7 +30,3 @@ soundfile>=0.12
 # Document processing
 pdfplumber>=0.10.0
 python-docx>=1.0.0
-
-# ffmpeg fallback when Homebrew is not available (provides a static binary via pip)
-# Install with:  pip install static-ffmpeg && python -c "import static_ffmpeg; static_ffmpeg.add_paths()"
-# static-ffmpeg>=2.0

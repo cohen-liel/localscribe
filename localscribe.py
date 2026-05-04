@@ -247,7 +247,17 @@ def run_diarization(audio_path: str, hf_token: str, num_speakers: int = None):
         diarization_params["min_speakers"] = MIN_SPEAKERS
         diarization_params["max_speakers"] = MAX_SPEAKERS
 
-    diarization = pipeline(audio_path, **diarization_params)
+    normalized_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(audio_path),
+             "-ac", "1", "-ar", "16000", "-vn", normalized_wav],
+            check=True,
+        )
+        diarization = pipeline(normalized_wav, **diarization_params)
+    finally:
+        if os.path.exists(normalized_wav):
+            os.unlink(normalized_wav)
 
     # Extract segments
     segments = []

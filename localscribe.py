@@ -69,6 +69,19 @@ MIN_SEGMENT_DURATION = 0.5  # seconds — ignore very short segments
 # Document settings
 SUPPORTED_DOC_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".doc", ".rtf", ".html"}
 MAX_DOC_CHARS = 50000  # Maximum characters to send to LLM
+HEBREW_LETTER_RE = re.compile(r"[\u0590-\u05FF]")
+HEBREW_WORD_RE = re.compile(r"[א-ת]{2,}")
+HEBREW_FINAL_LETTERS = set("ךםןףץ")
+RTL_MIRROR_TRANSLATION = str.maketrans("()[]{}<>", ")(][}{><")
+COMMON_HEBREW_WORDS = {
+    "של", "את", "על", "לא", "עם", "או", "אם", "כי", "הוא", "היא", "זה",
+    "זו", "יש", "אין", "כל", "גם", "כדי", "לפי", "אשר", "בין", "ידי",
+    "בנק", "הבנק", "אישור", "עקרוני", "מסמך", "הלוואה", "הלוואות",
+    "ריבית", "מדד", "תשלום", "תשלומים", "מסלול", "מסלולים", "משכנתה",
+    "דירה", "דיור", "נכס", "לקוח", "בקשה", "מספר", "תאריך", "סניף",
+    "מסגרת", "הסבר", "מבקש", "נתונים", "מחיר", "תקופה", "חודשית",
+    "חודשים", "לצרכן", "ישראל",
+}
 
 # Audio summarization settings
 SUMMARY_CHUNK_SECONDS = 120  # Summarize long meetings in 2-minute windows
@@ -1152,6 +1165,16 @@ def detect_document_type(text: str, filename: str = "") -> str:
     return "general"
 
 
+def is_hebrew_text(text: str) -> bool:
+    """Return True when the text is predominantly Hebrew."""
+    hebrew_words = HEBREW_WORD_RE.findall(text)
+    if len(hebrew_words) < 10:
+        return False
+    hebrew_chars = sum(1 for char in text if HEBREW_LETTER_RE.match(char))
+    latin_chars = sum(1 for char in text if "A" <= char <= "Z" or "a" <= char <= "z")
+    return hebrew_chars > latin_chars
+
+
 def get_document_prompt(doc_type: str, text: str) -> str:
     """Generate a summarization prompt tailored to the document type."""
 
@@ -1325,9 +1348,171 @@ Numbers, dates, names, or data worth noting
 ## Conclusions / Recommendations
 Conclusions or recommendations from the document (if any)"""
 
+    if is_hebrew_text(text):
+        hebrew_type_labels = {
+            "medical": "מסמך רפואי",
+            "legal": "מסמך משפטי / פיננסי",
+            "meeting": "פרוטוקול / סיכום פגישה",
+            "report": "דוח",
+            "proposal": "הצעה",
+            "hr": "מדיניות משאבי אנוש",
+            "general": "כללי",
+        }
+        base = f"""/no_think
+אתה מסכם מסמכים מקצועי. קיבלת מסמך מסוג: **{hebrew_type_labels.get(doc_type, "כללי")}**.
+המסמך בעברית. כתוב את כל הסיכום בעברית בלבד, כולל הכותרות. אל תתרגם לאנגלית.
+אם פרט לא מופיע במסמך, כתוב שהוא לא צוין במקום להמציא.
+
+"""
+        hebrew_instructions = {
+            "medical": """ספק סיכום רפואי מובנה הכולל:
+
+## סוג המסמך
+מכתב שחרור / הפניה / תוצאות בדיקה / אחר
+
+## סיכום קליני
+3-5 משפטים על המצב הרפואי, האבחנות והטיפול
+
+## אבחנות
+רשימת האבחנות שמופיעות במסמך
+
+## טיפולים ותרופות
+תרופות, מינונים ומשך טיפול
+
+## המלצות ומעקב
+הנחיות למטופל, ביקורי המשך ובדיקות נדרשות
+
+## הערות חשובות
+סימני אזהרה, מגבלות או מתי לפנות לטיפול""",
+            "legal": """ספק סיכום משפטי / פיננסי מובנה הכולל:
+
+## סוג המסמך
+חוזה / הסכם / אישור עקרוני / ייפוי כוח / אחר
+
+## צדדים
+הצדדים למסמך והפרטים שלהם, אם צוינו
+
+## תקציר מנהלים
+3-5 משפטים שמסבירים את מהות המסמך והתנאים המרכזיים
+
+## תנאים וסעיפים מרכזיים
+הסעיפים, המגבלות והתנאים העיקריים
+
+## התחייבויות כספיות
+סכומים, לוחות תשלומים, ערבויות, ריביות או עמלות
+
+## תאריכים חשובים
+תקופות, מועדים, תוקף או תנאי סיום
+
+## הערות וסיכונים
+נקודות שדורשות תשומת לב, סיכונים או הסתייגויות""",
+            "meeting": """ספק סיכום פגישה מובנה הכולל:
+
+## כותרת הפגישה
+שם קצר וממוקד
+
+## סיכום
+3-5 משפטים על עיקרי הפגישה
+
+## החלטות שהתקבלו
+רשימה ממוספרת של ההחלטות
+
+## משימות להמשך
+אחראי, תיאור ודדליין אם צוינו
+
+## נושאים פתוחים
+נושאים שעלו ולא נסגרו
+
+## פגישה הבאה
+מועד ונושאים מתוכננים, אם צוינו""",
+            "report": """ספק סיכום דוח מובנה הכולל:
+
+## כותרת הדוח
+שם קצר וממוקד
+
+## תקציר מנהלים
+3-5 משפטים על הממצאים המרכזיים
+
+## מדדים מרכזיים
+המספרים והנתונים החשובים ביותר
+
+## מגמות ותובנות
+ניתוח המגמות המרכזיות
+
+## אתגרים וסיכונים
+בעיות, מגבלות או סיכונים שזוהו
+
+## המלצות / תחזית
+צעדים מומלצים או תחזית להמשך""",
+            "proposal": """ספק סיכום הצעה מובנה הכולל:
+
+## שם הפרויקט
+שם קצר וממוקד
+
+## סיכום
+3-5 משפטים על ההצעה
+
+## מטרות ויעדים
+מה ההצעה מנסה להשיג
+
+## היקף ולוחות זמנים
+שלבים מרכזיים ותאריכי יעד
+
+## תקציב
+סיכום עלויות צפויות
+
+## סיכונים
+סיכונים מרכזיים ודרכי צמצום
+
+## תועלת צפויה
+ROI, ערך עסקי או יתרונות צפויים""",
+            "hr": """ספק סיכום מדיניות מובנה הכולל:
+
+## שם המדיניות
+שם קצר וממוקד
+
+## סיכום
+3-5 משפטים על עיקרי המדיניות
+
+## עקרונות מנחים
+העקרונות המרכזיים של המדיניות
+
+## כללים ונהלים מרכזיים
+הכללים שהעובדים צריכים להכיר
+
+## שינויים מהמדיניות הקודמת
+מה חדש או שונה, אם רלוונטי
+
+## השפעה על עובדים
+איך המדיניות משפיעה בפועל""",
+            "general": """ספק סיכום מובנה הכולל:
+
+## כותרת
+שם קצר וממוקד למסמך
+
+## סיכום
+3-5 משפטים על הנקודות המרכזיות
+
+## נקודות מרכזיות
+הפרטים החשובים ביותר במסמך
+
+## פרטים חשובים
+מספרים, תאריכים, שמות או נתונים שיש לשים לב אליהם
+
+## מסקנות / המלצות
+מסקנות או המלצות אם הן מופיעות במסמך""",
+        }
+        instructions = hebrew_instructions.get(doc_type, hebrew_instructions["general"])
+
     # Truncate text if too long
     if len(text) > MAX_DOC_CHARS:
         text = text[:MAX_DOC_CHARS] + "\n\n[... Document truncated due to length ...]"
+
+    final_instruction = (
+        "סכם בצורה מקצועית וברורה בעברית בלבד:"
+        if is_hebrew_text(text)
+        else "Summarize professionally and clearly:"
+    )
 
     return f"""{base}{instructions}
 
@@ -1336,7 +1521,64 @@ Document:
 {text}
 ---
 
-Summarize professionally and clearly:"""
+{final_instruction}"""
+
+
+def _repair_reversed_hebrew_pdf_token(token: str) -> str:
+    """Repair a token from PDFs that expose Hebrew in visual LTR order."""
+    if not HEBREW_LETTER_RE.search(token):
+        return token
+
+    chunks = re.findall(r"[A-Za-z0-9]+(?:[./:][A-Za-z0-9]+)*|[א-ת]+|.", token)
+    repaired = []
+    for chunk in reversed(chunks):
+        repaired.append(chunk[::-1] if HEBREW_LETTER_RE.search(chunk) else chunk)
+    return "".join(repaired).translate(RTL_MIRROR_TRANSLATION)
+
+
+def _repair_reversed_hebrew_pdf_line(line: str) -> str:
+    """Repair one visually ordered RTL line while preserving indentation."""
+    if not HEBREW_LETTER_RE.search(line):
+        return line
+
+    leading_len = len(line) - len(line.lstrip())
+    trailing_len = len(line) - len(line.rstrip())
+    leading = line[:leading_len]
+    trailing = line[len(line) - trailing_len:] if trailing_len else ""
+    core = line.strip()
+    if not core:
+        return line
+
+    tokens = core.split()
+    return leading + " ".join(
+        _repair_reversed_hebrew_pdf_token(token) for token in reversed(tokens)
+    ) + trailing
+
+
+def _hebrew_pdf_direction_score(text: str) -> int:
+    """Score logical Hebrew order versus visually reversed extraction."""
+    words = HEBREW_WORD_RE.findall(text)
+    common_hits = sum(1 for word in words if word in COMMON_HEBREW_WORDS)
+    bad_final_starts = sum(1 for word in words if word[0] in HEBREW_FINAL_LETTERS)
+    return (common_hits * 3) - (bad_final_starts * 2)
+
+
+def repair_hebrew_pdf_text(text: str) -> str:
+    """Fix Hebrew PDFs whose text layer is extracted in visual left-to-right order."""
+    if not text or not HEBREW_LETTER_RE.search(text):
+        return text
+
+    repaired = "\n".join(
+        _repair_reversed_hebrew_pdf_line(line) for line in text.splitlines()
+    )
+    original_score = _hebrew_pdf_direction_score(text)
+    repaired_score = _hebrew_pdf_direction_score(repaired)
+    hebrew_words = len(HEBREW_WORD_RE.findall(text))
+    threshold = max(8, int(hebrew_words * 0.03))
+
+    if repaired_score > original_score + threshold:
+        return repaired
+    return text
 
 
 def read_document(file_path: str) -> str:
@@ -1353,10 +1595,12 @@ def read_document(file_path: str) -> str:
             text_parts = []
             with pdfplumber.open(str(path)) as pdf:
                 for page in pdf.pages:
-                    page_text = page.extract_text()
+                    page_text = page.extract_text(x_tolerance=1, y_tolerance=3)
+                    if not page_text:
+                        page_text = page.extract_text()
                     if page_text:
                         text_parts.append(page_text)
-            return "\n\n".join(text_parts)
+            return repair_hebrew_pdf_text("\n\n".join(text_parts))
         except ImportError as e:
             raise RuntimeError("Cannot read PDF: pdfplumber is not installed") from e
         except Exception as e:

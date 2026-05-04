@@ -43,7 +43,8 @@ def now_iso():
 
 def safe_filename(name: str) -> str:
     name = Path(name or "upload").name
-    name = re.sub(r"[^A-Za-z0-9._ -]+", "_", name).strip(" .")
+    name = re.sub(r"[^\w. -]+", "_", name, flags=re.UNICODE)
+    name = re.sub(r"\s+", " ", name).strip(" .")
     return name or "upload"
 
 
@@ -487,6 +488,17 @@ HTML_PAGE = r"""<!doctype html>
       padding: 30px;
       text-align: center;
     }
+    .running-panel {
+      display: grid;
+      gap: 12px;
+    }
+    .running-phase {
+      color: var(--text);
+      font-weight: 700;
+    }
+    .running-panel pre {
+      min-height: 220px;
+    }
     .metrics {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -666,6 +678,46 @@ HTML_PAGE = r"""<!doctype html>
       return markdown;
     }
 
+    function logLines(job) {
+      return (job?.logs || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    }
+
+    function currentPhase(job) {
+      const lines = logLines(job);
+      const phase = [...lines].reverse().find(line =>
+        !line.startsWith('$') && (
+          line.includes('Stage') ||
+          line.includes('Reading') ||
+          line.includes('Summarizing') ||
+          line.includes('Transcribing') ||
+          line.includes('Diarization') ||
+          line.includes('Processing')
+        )
+      );
+      return phase || 'Processing...';
+    }
+
+    function renderPending(job) {
+      const tail = logLines(job).slice(-16).join('\n');
+      if (job.status === 'running') {
+        return `
+          <div class="running-panel">
+            <div class="running-phase">${escapeHtml(currentPhase(job))}</div>
+            <pre>${escapeHtml(tail || 'Starting...')}</pre>
+          </div>
+        `;
+      }
+      if (job.status === 'failed') {
+        return `
+          <div class="running-panel">
+            <div class="running-phase">Job failed</div>
+            <pre>${escapeHtml(tail || job.error || 'No logs available.')}</pre>
+          </div>
+        `;
+      }
+      return '<div class="empty">No result yet.</div>';
+    }
+
     function renderContent() {
       const job = state.jobs.find(j => j.id === state.selected);
       const content = $('content');
@@ -687,7 +739,8 @@ HTML_PAGE = r"""<!doctype html>
         content.innerHTML = `<pre>${escapeHtml(getTranscript(job) || 'No transcript yet.')}</pre>`;
         return;
       }
-      content.innerHTML = renderMarkdown(summaryFromMarkdown(job.markdown));
+      const summary = summaryFromMarkdown(job.markdown);
+      content.innerHTML = summary ? renderMarkdown(summary) : renderPending(job);
     }
 
     function setMetrics(job) {

@@ -87,10 +87,10 @@ def test_full_pipeline():
             print("    Note: Metal GPU not available (expected on Apple Silicon)")
     all_ok &= check_component("PyTorch (Metal GPU)", check_torch)
 
-    # Check pydub
-    def check_pydub():
-        from pydub import AudioSegment  # noqa: F401
-    all_ok &= check_component("pydub (audio processing)", check_pydub)
+    # Check soundfile (replaces pydub — see requirements.txt)
+    def check_soundfile():
+        import soundfile  # noqa: F401
+    all_ok &= check_component("soundfile (audio processing)", check_soundfile)
 
     # Check ffmpeg
     def check_ffmpeg():

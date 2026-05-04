@@ -147,8 +147,8 @@ def ensure_dependencies(mode: str = "audio"):
         check_and_install("pyannote.audio", "pyannote")
         print("  [OK] pyannote.audio (speaker diarization)")
 
-        check_and_install("pydub", "pydub")
-        print("  [OK] pydub (audio processing)")
+        check_and_install("soundfile", "soundfile")
+        print("  [OK] soundfile (audio processing)")
 
         # Check HuggingFace token
         hf_token = get_hf_token()

@@ -8,12 +8,12 @@ Transcribe Hebrew meetings with speaker identification and smart summarization �
 Audio Pipeline:
 1. Speaker Diarization (pyannote.audio) → who spoke and when
 2. Hebrew ASR (mlx-whisper + ivrit.ai Turbo) → accurate Hebrew transcription
-3. Summarization (Ollama + Qwen3) → summary + decisions + action items
+3. Summarization (Ollama + Gemma) → summary + decisions + action items
 
 Document Pipeline:
 1. Read & Parse document (Markdown, TXT, PDF, DOCX)
 2. Detect document type (medical, legal, meeting, report, etc.)
-3. Summarization (Ollama + Qwen3) → type-specific structured summary
+3. Summarization (Ollama + Gemma) → type-specific structured summary
 
 Requirements:
 - Mac with Apple Silicon (M1/M2/M3/M4)
@@ -27,6 +27,7 @@ Usage:
     python3 localscribe.py --record
     python3 localscribe.py --speakers 3 meeting.mp3
     python3 localscribe.py --simulate-stream meeting.mp3
+    python3 localscribe.py --live-stream --duration 600
 
     # Document mode
     python3 localscribe.py --document <file>
@@ -73,6 +74,7 @@ MAX_DOC_CHARS = 50000  # Maximum characters to send to LLM
 SUMMARY_CHUNK_SECONDS = 120  # Summarize long meetings in 2-minute windows
 SUMMARY_REDUCE_MAX_CHARS = 24000  # Recursively reduce chunk summaries above this size
 SUMMARY_REDUCE_GROUP_SIZE = 8
+ENABLE_TRANSCRIPT_POLISH = True
 
 # Streaming simulation settings
 STREAM_CHUNK_SECONDS = 120  # Simulated live chunks for existing recordings
@@ -120,6 +122,40 @@ def clean_llm_output(text: str) -> str:
     text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text).strip()
     text = re.sub(r"(?is)<think>.*?</think>", "", text).strip()
     text = re.sub(r"(?is)^thinking\.\.\..*?\.\.\.done thinking\.\s*", "", text).strip()
+    return text
+
+
+def sanitize_summary_language(summary: str) -> str:
+    """Remove decision-like verbs when the summary itself says no decisions were made."""
+    if "לא התקבלו החלטות" not in summary:
+        return summary
+
+    replacements = {
+        "הוחלט כי": "נאמר כי",
+        "הוחלט ש": "נאמר ש",
+        "נקבע כי": "הוצג כי",
+        "נקבע ש": "הוצג ש",
+        "נקבעה כי": "הוצג כי",
+        "נקבעה ש": "הוצג ש",
+        "הוחלטו": "הוצגו",
+    }
+
+    for source, target in replacements.items():
+        summary = summary.replace(source, target)
+
+    return summary
+
+
+def clean_polished_transcript_output(text: str) -> str:
+    """Remove wrapper labels/models often add around corrected transcripts."""
+    text = clean_llm_output(text)
+    text = re.sub(r"(?im)^```(?:text|markdown)?\s*$", "", text).strip()
+    text = re.sub(r"(?im)^```\s*$", "", text).strip()
+    text = re.sub(
+        r"(?im)^(corrected transcript|polished transcript|transcript מתוקן|תמלול מתוקן)\s*:?\s*$",
+        "",
+        text,
+    ).strip()
     return text
 
 
@@ -444,6 +480,52 @@ def run_ollama_prompt(prompt: str, timeout: int = 180) -> str:
     return clean_llm_output(result.stdout)
 
 
+def polish_transcript_chunk(transcript: str, start: float = None, end: float = None) -> str:
+    """
+    Use the local LLM to clean obvious ASR errors while preserving transcript structure.
+    The raw transcript remains the source of truth and is always saved separately.
+    """
+    if not ENABLE_TRANSCRIPT_POLISH or not transcript.strip():
+        return transcript
+
+    time_context = ""
+    if start is not None and end is not None:
+        time_context = f"The transcript covers {format_time_range(start, end)}.\n"
+
+    prompt = f"""/no_think
+You are correcting a Hebrew ASR transcript from a meeting.
+{time_context}The transcript may contain timestamps and speaker labels such as [03:20] **Speaker 2:**.
+
+Goal: produce a cleaner readable transcript while preserving evidence.
+
+Strict rules:
+- Keep every timestamp and speaker label exactly as written.
+- Keep the same order and the same line structure.
+- Correct only obvious ASR mistakes, punctuation, spacing, and grammar when the intended meaning is clear from context.
+- Smooth wording only lightly; do not rewrite into a summary.
+- Do not add new facts, names, numbers, dates, decisions, or action items.
+- Do not remove uncertain or unclear content. If unclear, keep it close to the original wording.
+- Do not infer speaker identities from context.
+- Return only the corrected transcript, no commentary.
+
+---
+Raw transcript:
+{transcript}
+---
+
+Corrected transcript:"""
+
+    polished = clean_polished_transcript_output(run_ollama_prompt(prompt, timeout=240))
+
+    # If the model ignored the requested structure, keep the raw transcript.
+    raw_markers = transcript.count("[")
+    polished_markers = polished.count("[")
+    if raw_markers and polished_markers < max(1, raw_markers // 2):
+        return transcript
+
+    return polished or transcript
+
+
 def validate_audio_summary(summary: str, evidence: str, evidence_label: str) -> str:
     """Rewrite a summary conservatively, removing unsupported structured claims."""
     if len(evidence) > SUMMARY_REDUCE_MAX_CHARS:
@@ -487,7 +569,7 @@ Draft summary:
 
 Return only the corrected Hebrew summary:"""
 
-    return run_ollama_prompt(prompt, timeout=240)
+    return sanitize_summary_language(run_ollama_prompt(prompt, timeout=240))
 
 
 def validate_audio_chunk_summary(summary: str, evidence: str, evidence_label: str) -> str:
@@ -530,7 +612,7 @@ Draft chunk summary:
 
 Return only the corrected Hebrew chunk summary:"""
 
-    return run_ollama_prompt(prompt, timeout=180)
+    return sanitize_summary_language(run_ollama_prompt(prompt, timeout=180))
 
 
 def split_text_by_durations(text: str, durations: list) -> list:
@@ -729,6 +811,7 @@ def chunk_segments_by_time(
 def summarize_transcript_chunk(chunk: dict, chunk_index: int, total_chunks: int, num_speakers: int) -> str:
     """Summarize one time-bounded transcript chunk."""
     time_range = format_time_range(chunk["start"], chunk["end"])
+    transcript_for_summary = chunk.get("polished_transcript") or chunk["transcript"]
     prompt = f"""/no_think
 You are summarizing one time-bounded part of a longer Hebrew audio transcript.
 This is chunk {chunk_index} of {total_chunks}, covering {time_range}.
@@ -775,15 +858,15 @@ Only explicit unresolved topics. If none, write: לא הוגדרו נושאים 
 
 ---
 Transcript chunk:
-{chunk["transcript"]}
+{transcript_for_summary}
 ---
 
 Summarize this chunk professionally and clearly:"""
     draft_summary = run_ollama_prompt(prompt, timeout=180)
     return validate_audio_chunk_summary(
         draft_summary,
-        chunk["transcript"],
-        "transcript chunk with speaker labels",
+        transcript_for_summary,
+        "polished transcript chunk with speaker labels",
     )
 
 
@@ -922,12 +1005,17 @@ Summarize professionally and clearly:"""
 def summarize_audio_hierarchically(segments: list, num_speakers: int, speaker_map: dict):
     """
     Summarize audio with time-window chunk summaries and recursive reduction.
-    Returns the final summary and the first-level chunk summaries for output files.
+    Returns the final summary, first-level chunk summaries, and polished transcript.
     """
     chunks = chunk_segments_by_time(segments, speaker_map)
     if len(chunks) <= 1:
         transcript = format_transcript_with_speakers(segments, speaker_map)
-        return summarize_with_speakers(transcript, num_speakers), []
+        polished_transcript = polish_transcript_chunk(
+            transcript,
+            segments[0]["start"] if segments else None,
+            segments[-1]["end"] if segments else None,
+        )
+        return summarize_with_speakers(polished_transcript, num_speakers), [], polished_transcript
 
     print(f"Stage 3: Hierarchical Summarization ({OLLAMA_MODEL})...")
     print(
@@ -938,14 +1026,26 @@ def summarize_audio_hierarchically(segments: list, num_speakers: int, speaker_ma
 
     start_time = time.time()
     chunk_summaries = []
+    polished_transcript_parts = []
 
     for i, chunk in enumerate(chunks, start=1):
         time_range = format_time_range(chunk["start"], chunk["end"])
+        print(f"   Polishing transcript chunk {i}/{len(chunks)} ({time_range})...")
+        polished_transcript = polish_transcript_chunk(
+            chunk["transcript"],
+            chunk["start"],
+            chunk["end"],
+        )
+        chunk["polished_transcript"] = polished_transcript
+        polished_transcript_parts.append(polished_transcript)
+
         print(f"   Summarizing chunk {i}/{len(chunks)} ({time_range})...")
         chunk_summaries.append({
             "index": i,
             "start": chunk["start"],
             "end": chunk["end"],
+            "raw_transcript": chunk["transcript"],
+            "polished_transcript": polished_transcript,
             "summary": summarize_transcript_chunk(chunk, i, len(chunks), num_speakers),
         })
 
@@ -957,7 +1057,8 @@ def summarize_audio_hierarchically(segments: list, num_speakers: int, speaker_ma
     print(f"   Hierarchical summarization complete in {elapsed:.1f}s")
     print()
 
-    return final_summary, chunk_summaries
+    polished_transcript = "\n\n".join(part for part in polished_transcript_parts if part.strip())
+    return final_summary, chunk_summaries, polished_transcript
 
 
 # ============================================================
@@ -1464,6 +1565,7 @@ def save_results(
     transcript: str,
     summary: str,
     summary_chunks: list = None,
+    polished_transcript: str = None,
 ):
     """Save all results to organized output files."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -1488,6 +1590,16 @@ def save_results(
             + "\n"
         )
 
+    polished_section = ""
+    if polished_transcript and polished_transcript.strip() and polished_transcript.strip() != transcript.strip():
+        polished_section = f"""
+---
+
+## Polished Transcript (LLM-Corrected Draft)
+
+{polished_transcript}
+"""
+
     # Markdown output
     md_file = OUTPUT_DIR / f"{base_name}_{timestamp}.md"
     md_content = f"""# Audio Summary — LocalScribe
@@ -1501,10 +1613,11 @@ def save_results(
 
 {summary}
 {chunk_section}
+{polished_section}
 
 ---
 
-## Full Transcript (with Speaker Identification)
+## Raw Transcript (with Speaker Identification)
 
 {transcript}
 """
@@ -1528,6 +1641,7 @@ def save_results(
         },
         "segments": segments,
         "transcript": transcript,
+        "polished_transcript": polished_transcript,
         "summary": summary,
         "summary_chunks": summary_chunks,
     }
@@ -1569,15 +1683,26 @@ def display_results(transcript: str, summary: str):
 # ============================================================
 # Simulated Streaming (from an existing recording)
 # ============================================================
-def summarize_stream_chunk(transcript: str, start: float, end: float, chunk_index: int, total_chunks: int) -> str:
+def summarize_stream_chunk(
+    transcript: str,
+    start: float,
+    end: float,
+    chunk_index: int,
+    total_chunks: int = None,
+) -> str:
     """Summarize one simulated streaming chunk."""
     if not transcript.strip():
         return "לא זוהה דיבור ברור בחלק זה."
 
     time_range = format_time_range(start, end)
+    chunk_context = (
+        f"This is chunk {chunk_index} of {total_chunks}, covering {time_range}."
+        if total_chunks
+        else f"This is live chunk {chunk_index}, covering {time_range}."
+    )
     prompt = f"""/no_think
 You are summarizing a live-style Hebrew audio chunk.
-This is chunk {chunk_index} of {total_chunks}, covering {time_range}.
+{chunk_context}
 The transcript was produced without full-file speaker diarization, so do not claim reliable speaker identities.
 
 Provide a compact Hebrew summary for this chunk.
@@ -1685,11 +1810,16 @@ def save_streaming_results(
     stream_chunks: list,
     final_summary: str,
     chunk_seconds: int,
+    mode_name: str = "Streaming Simulation",
+    mode_description: str = "Simulated streaming from existing recording",
+    speaker_tracking: str = "Not reliable in streaming simulation",
+    extra_metadata: dict = None,
 ):
-    """Save simulated streaming transcript chunks and summaries."""
+    """Save streaming transcript chunks and summaries."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_name = Path(audio_path).stem
+    extra_metadata = extra_metadata or {}
 
     chunk_blocks = []
     transcript_lines = []
@@ -1706,15 +1836,15 @@ def save_streaming_results(
     duration = stream_chunks[-1]["end"] if stream_chunks else 0
 
     md_file = OUTPUT_DIR / f"stream_{base_name}_{timestamp}.md"
-    md_content = f"""# Streaming Simulation — LocalScribe
+    md_content = f"""# {mode_name} — LocalScribe
 
 **Processed:** {datetime.now().strftime("%Y-%m-%d %H:%M")}
 **Source file:** {Path(audio_path).name}
-**Mode:** Simulated streaming from existing recording
+**Mode:** {mode_description}
 **Chunk size:** {chunk_seconds}s
 **Chunks:** {len(stream_chunks)}
 **Duration:** {format_timestamp(duration)}
-**Speaker tracking:** Not reliable in streaming simulation
+**Speaker tracking:** {speaker_tracking}
 
 ---
 
@@ -1741,14 +1871,15 @@ def save_streaming_results(
         "metadata": {
             "date": datetime.now().isoformat(),
             "audio_file": str(audio_path),
-            "mode": "streaming_simulation",
+            "mode": mode_description,
             "chunk_seconds": chunk_seconds,
             "duration_seconds": duration,
-            "speaker_tracking": "not_reliable_in_streaming_simulation",
+            "speaker_tracking": speaker_tracking,
             "models": {
                 "transcription": WHISPER_MODEL,
                 "summarization": OLLAMA_MODEL,
             },
+            **extra_metadata,
         },
         "chunks": stream_chunks,
         "final_summary": final_summary,
@@ -1898,6 +2029,296 @@ def process_stream_simulation(audio_path: str, chunk_seconds: int = STREAM_CHUNK
     return md_file
 
 
+def transcribe_stream_chunk_file(chunk_file: str):
+    """Transcribe one 16k mono WAV chunk and return transcript plus basic metrics."""
+    import mlx_whisper
+    import numpy as np
+    import soundfile as sf
+
+    audio_data, sr = sf.read(str(chunk_file))
+    duration = len(audio_data) / sr if sr else 0.0
+    rms = float(np.sqrt(np.mean(np.square(audio_data)))) if len(audio_data) else 0.0
+
+    if rms < MIN_STREAM_RMS:
+        return {
+            "transcript": "",
+            "duration": duration,
+            "rms": rms,
+            "transcription_seconds": 0.0,
+        }
+
+    transcribe_start = time.time()
+    result = mlx_whisper.transcribe(
+        str(chunk_file),
+        path_or_hf_repo=WHISPER_MODEL,
+        language="he",
+        task="transcribe",
+    )
+
+    return {
+        "transcript": result["text"].strip(),
+        "duration": duration,
+        "rms": rms,
+        "transcription_seconds": time.time() - transcribe_start,
+    }
+
+
+def get_ready_recorded_chunk(recording_dir: Path, processed_files: set, recorder: subprocess.Popen):
+    """
+    Return the next chunk file that ffmpeg has finished writing.
+    While recording is active, the newest segment is treated as still open.
+    """
+    files = sorted(recording_dir.glob("chunk_*.wav"))
+    if recorder.poll() is None:
+        files = files[:-1]
+
+    for file in files:
+        if file not in processed_files and file.exists() and file.stat().st_size > 0:
+            return file
+
+    return None
+
+
+def wait_for_recorder_to_stop(recorder: subprocess.Popen, timeout: float = 5.0):
+    """Terminate ffmpeg cleanly, then force-kill if needed."""
+    if recorder.poll() is not None:
+        return
+
+    recorder.terminate()
+    try:
+        recorder.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        recorder.kill()
+        recorder.wait()
+
+
+def concat_audio_chunks(chunk_files: list, output_path: Path) -> Optional[Path]:
+    """Concatenate recorded WAV chunks into one WAV for the final full pass."""
+    if not chunk_files:
+        return None
+
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as list_file:
+        list_path = Path(list_file.name)
+        for chunk_file in chunk_files:
+            escaped = str(Path(chunk_file).resolve()).replace("'", "'\\''")
+            list_file.write(f"file '{escaped}'\n")
+
+    try:
+        subprocess.run(
+            [
+                "ffmpeg", "-y", "-loglevel", "error",
+                "-f", "concat", "-safe", "0",
+                "-i", str(list_path),
+                "-ar", "16000", "-ac", "1",
+                str(output_path),
+            ],
+            check=True,
+        )
+    finally:
+        if list_path.exists():
+            list_path.unlink()
+
+    return output_path if output_path.exists() and output_path.stat().st_size > 0 else None
+
+
+def process_live_recorded_chunk(
+    chunk_file: Path,
+    chunk_index: int,
+    start_sec: float,
+    stream_chunks: list,
+):
+    """Transcribe and summarize one live-recorded chunk."""
+    metrics = transcribe_stream_chunk_file(str(chunk_file))
+    end_sec = start_sec + metrics["duration"]
+    time_range = format_time_range(start_sec, end_sec)
+
+    print(f"Processing live chunk {chunk_index} ({time_range})")
+    if not metrics["transcript"]:
+        print("   No clear speech detected")
+
+    summarize_start = time.time()
+    chunk_summary = summarize_stream_chunk(
+        metrics["transcript"],
+        start_sec,
+        end_sec,
+        chunk_index,
+        total_chunks=None,
+    )
+    summarize_elapsed = time.time() - summarize_start
+
+    stream_chunks.append({
+        "index": chunk_index,
+        "start": start_sec,
+        "end": end_sec,
+        "source_chunk_file": str(chunk_file),
+        "rms": metrics["rms"],
+        "transcript": metrics["transcript"],
+        "summary": chunk_summary,
+        "transcription_seconds": metrics["transcription_seconds"],
+        "summary_seconds": summarize_elapsed,
+    })
+
+    print(f"   Transcript chars: {len(metrics['transcript'])}")
+    print(
+        f"   Transcription: {metrics['transcription_seconds']:.1f}s "
+        f"| Summary: {summarize_elapsed:.1f}s"
+    )
+    print()
+
+    return end_sec
+
+
+def process_live_stream(
+    duration_seconds: int = None,
+    chunk_seconds: int = STREAM_CHUNK_SECONDS,
+    final_pass: bool = True,
+    num_speakers: int = None,
+):
+    """
+    Record microphone audio continuously into chunks and process them as live drafts.
+    After recording, optionally run the full diarization pipeline on the combined audio.
+    """
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    recording_dir = OUTPUT_DIR / f"live_chunks_{timestamp}"
+    recording_dir.mkdir(parents=True, exist_ok=True)
+    chunk_pattern = recording_dir / "chunk_%05d.wav"
+    final_recording = OUTPUT_DIR / f"live_recording_{timestamp}.wav"
+
+    print()
+    print("+" + "=" * 62 + "+")
+    print("|           LocalScribe — Live Streaming                       |")
+    print("|   Mic -> live chunks -> draft summaries -> final full pass   |")
+    print("+" + "=" * 62 + "+")
+    print()
+    print(f"Chunk size: {chunk_seconds}s")
+    print(f"Duration: {duration_seconds}s" if duration_seconds else "Duration: until Ctrl+C")
+    print("Speaker tracking during live draft: disabled")
+    if final_pass:
+        print("Final pass: enabled (diarization + corrected final summary after recording)")
+    else:
+        print("Final pass: disabled")
+    print()
+
+    cmd = [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "avfoundation", "-i", ":0",
+    ]
+    if duration_seconds:
+        cmd.extend(["-t", str(duration_seconds)])
+    cmd.extend([
+        "-ar", "16000", "-ac", "1",
+        "-f", "segment",
+        "-segment_time", str(chunk_seconds),
+        "-reset_timestamps", "1",
+        str(chunk_pattern),
+    ])
+
+    print("Starting microphone recorder...")
+    recorder = subprocess.Popen(cmd)
+    print("Recording. Press Ctrl+C to stop.")
+    print()
+
+    processed_files = set()
+    processed_order = []
+    stream_chunks = []
+    chunk_index = 1
+    next_start = 0.0
+    interrupted = False
+
+    try:
+        while True:
+            ready_chunk = get_ready_recorded_chunk(recording_dir, processed_files, recorder)
+            if ready_chunk is None:
+                if recorder.poll() is not None:
+                    break
+                time.sleep(0.5)
+                continue
+
+            processed_files.add(ready_chunk)
+            processed_order.append(ready_chunk)
+            next_start = process_live_recorded_chunk(
+                ready_chunk,
+                chunk_index,
+                next_start,
+                stream_chunks,
+            )
+            chunk_index += 1
+
+    except KeyboardInterrupt:
+        interrupted = True
+        print()
+        print("Stopping live recording...")
+        wait_for_recorder_to_stop(recorder)
+
+    finally:
+        wait_for_recorder_to_stop(recorder)
+
+    # Process any final segment ffmpeg closed after stopping.
+    while True:
+        ready_chunk = get_ready_recorded_chunk(recording_dir, processed_files, recorder)
+        if ready_chunk is None:
+            break
+        processed_files.add(ready_chunk)
+        processed_order.append(ready_chunk)
+        next_start = process_live_recorded_chunk(
+            ready_chunk,
+            chunk_index,
+            next_start,
+            stream_chunks,
+        )
+        chunk_index += 1
+
+    if not stream_chunks:
+        print("[ERROR] No chunks were recorded or processed")
+        return None
+
+    print("Creating final live-stream summary from chunk summaries...")
+    final_start = time.time()
+    final_summary = summarize_stream_final(stream_chunks)
+    print(f"   Final live-stream summary complete in {time.time() - final_start:.1f}s")
+    print()
+
+    combined = concat_audio_chunks(processed_order, final_recording)
+    if combined:
+        print(f"Combined recording saved: {combined}")
+    else:
+        print("[WARN] Could not create combined recording for final pass")
+    print(f"Raw chunks saved in: {recording_dir}")
+    print()
+
+    md_file, json_file = save_streaming_results(
+        str(combined or final_recording),
+        stream_chunks,
+        final_summary,
+        chunk_seconds,
+        mode_name="Live Streaming",
+        mode_description="Live microphone streaming draft",
+        speaker_tracking="Not reliable during live draft; use final full pass for speaker labels",
+        extra_metadata={
+            "recording_chunks_dir": str(recording_dir),
+            "interrupted": interrupted,
+            "final_pass_enabled": final_pass,
+        },
+    )
+
+    print("=" * 60)
+    print("Final Live Draft Summary:")
+    print("=" * 60)
+    print()
+    print(final_summary)
+    print()
+    print("=" * 60)
+
+    if final_pass and combined:
+        print()
+        print("Running final full pass with diarization on the combined recording...")
+        hf_token = ensure_dependencies(mode="audio")
+        process_audio(str(combined), hf_token, num_speakers)
+
+    return md_file
+
+
 # ============================================================
 # Recording
 # ============================================================
@@ -1970,7 +2391,7 @@ def process_audio(audio_path: str, hf_token: str, num_speakers: int = None):
     unique_speakers = set(seg["speaker"] for seg in transcribed_segments)
 
     # Stage 3: Summarization
-    summary, summary_chunks = summarize_audio_hierarchically(
+    summary, summary_chunks, polished_transcript = summarize_audio_hierarchically(
         transcribed_segments,
         len(unique_speakers),
         speaker_map,
@@ -1988,6 +2409,7 @@ def process_audio(audio_path: str, hf_token: str, num_speakers: int = None):
         transcript,
         summary,
         summary_chunks,
+        polished_transcript=polished_transcript,
     )
     display_results(transcript, summary)
 
@@ -2055,6 +2477,47 @@ def main():
         process_stream_simulation(audio_path, chunk_seconds)
         return
 
+    if "--live-stream" in sys.argv:
+        chunk_seconds = STREAM_CHUNK_SECONDS
+        if "--chunk-seconds" in sys.argv:
+            chunk_idx = sys.argv.index("--chunk-seconds")
+            if chunk_idx + 1 >= len(sys.argv):
+                print("[ERROR] Seconds value required after --chunk-seconds")
+                return
+            chunk_seconds = int(sys.argv[chunk_idx + 1])
+            if chunk_seconds <= 0:
+                print("[ERROR] --chunk-seconds must be positive")
+                return
+
+        duration_seconds = None
+        if "--duration" in sys.argv:
+            duration_idx = sys.argv.index("--duration")
+            if duration_idx + 1 >= len(sys.argv):
+                print("[ERROR] Seconds value required after --duration")
+                return
+            duration_seconds = int(sys.argv[duration_idx + 1])
+            if duration_seconds <= 0:
+                print("[ERROR] --duration must be positive")
+                return
+
+        num_speakers = None
+        if "--speakers" in sys.argv:
+            speakers_idx = sys.argv.index("--speakers")
+            if speakers_idx + 1 >= len(sys.argv):
+                print("[ERROR] Speaker count required after --speakers")
+                return
+            num_speakers = int(sys.argv[speakers_idx + 1])
+
+        final_pass = "--no-final-pass" not in sys.argv
+        ensure_dependencies(mode="stream")
+        process_live_stream(
+            duration_seconds=duration_seconds,
+            chunk_seconds=chunk_seconds,
+            final_pass=final_pass,
+            num_speakers=num_speakers,
+        )
+        return
+
     # Audio mode
     if len(sys.argv) > 1:
         arg = sys.argv[1]
@@ -2074,6 +2537,8 @@ def main():
             print("  python3 localscribe.py --speakers 3 file.mp3   # Specify speaker count")
             print("  python3 localscribe.py --record                # Record and process")
             print("  python3 localscribe.py --simulate-stream file.mp3 --chunk-seconds 120")
+            print("  python3 localscribe.py --live-stream --duration 600 --chunk-seconds 120")
+            print("  python3 localscribe.py --live-stream --no-final-pass")
             print()
             print("  Document mode (smart summarization):")
             print("  python3 localscribe.py --document <file>       # Summarize a single document")
@@ -2112,9 +2577,10 @@ def main():
     print("  4.  Summarize a document")
     print("  5.  Summarize all documents in a folder")
     print("  6.  Simulate streaming from an audio file")
+    print("  7.  Live stream from microphone")
     print()
 
-    choice = input("Choose (1-6): ").strip()
+    choice = input("Choose (1-7): ").strip()
 
     if choice == "1":
         hf_token = ensure_dependencies(mode="audio")
@@ -2186,6 +2652,27 @@ def main():
         chunk_input = input(f"Chunk seconds (Enter for {STREAM_CHUNK_SECONDS}): ").strip()
         chunk_seconds = int(chunk_input) if chunk_input else STREAM_CHUNK_SECONDS
         process_stream_simulation(audio_path, chunk_seconds)
+
+    elif choice == "7":
+        ensure_dependencies(mode="stream")
+        print()
+        duration_input = input("Duration seconds (Enter to stop with Ctrl+C): ").strip()
+        duration_seconds = int(duration_input) if duration_input else None
+        chunk_input = input(f"Chunk seconds (Enter for {STREAM_CHUNK_SECONDS}): ").strip()
+        chunk_seconds = int(chunk_input) if chunk_input else STREAM_CHUNK_SECONDS
+        final_input = input("Run final full pass with speaker diarization? [Y/n]: ").strip().lower()
+        final_pass = final_input not in {"n", "no"}
+        num_speakers = None
+        if final_pass:
+            speakers_input = input("Number of speakers for final pass (Enter for auto-detect): ").strip()
+            num_speakers = int(speakers_input) if speakers_input else None
+
+        process_live_stream(
+            duration_seconds=duration_seconds,
+            chunk_seconds=chunk_seconds,
+            final_pass=final_pass,
+            num_speakers=num_speakers,
+        )
 
     else:
         print("[ERROR] Invalid choice")

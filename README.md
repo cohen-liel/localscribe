@@ -13,6 +13,9 @@ No cloud. No API keys for transcription. No data leaves your machine. Ever.
 | Hebrew Transcription | Whisper Large V3 | **ivrit.ai Turbo (MLX)** (94–95% accuracy) |
 | Speaker Diarization | — | **pyannote 3.x** (who said what) |
 | Summarization | Qwen3 1.7B | **Gemma 4 e4b** (speaker-aware, configurable) |
+| Long Meeting Summaries | Single prompt | **2-minute hierarchical summaries** |
+| Streaming Drafts | — | **Simulated + live microphone chunk mode** |
+| Transcript Cleanup | — | **Raw transcript + LLM-polished draft** |
 | Action Items | Basic | **Assigned to specific speakers** |
 | Apple Metal GPU | — | **Accelerated diarization** |
 | Document Summarization | — | **Medical, legal, business, HR, and more** |
@@ -41,12 +44,13 @@ No cloud. No API keys for transcription. No data leaves your machine. Ever.
         │
         ▼
 ┌──────────────────────────────┐
-│  Stage 3: Smart Summarization │  Qwen3 1.7B (Ollama, fully local)
+│  Stage 3: Smart Summarization │  Gemma 4 e4b (Ollama, fully local)
 │  "What matters?"              │  → Summary + Decisions + Action Items
 └──────────────────────────────┘
         │
         ▼
 📄  Structured Markdown + JSON output
+    Includes raw transcript, optional polished transcript, chunk summaries
 ```
 
 ### Document Pipeline
@@ -136,6 +140,15 @@ python3 localscribe.py --record
 # Specify a known number of speakers (improves accuracy)
 python3 localscribe.py meeting.mp3 --speakers 3
 
+# Simulate streaming from an existing recording
+python3 localscribe.py --simulate-stream meeting.mp3 --chunk-seconds 120
+
+# Live microphone streaming draft, then final full pass with diarization
+python3 localscribe.py --live-stream --duration 600 --chunk-seconds 120
+
+# Live draft only, without final diarization pass
+python3 localscribe.py --live-stream --no-final-pass
+
 # Interactive menu
 python3 localscribe.py
 ```
@@ -149,6 +162,9 @@ python3 localscribe.py --document report.pdf
 # Summarize all documents in a folder
 python3 localscribe.py --document-dir ./documents/
 ```
+
+You can put your own documents anywhere on disk and pass the file or folder path.
+Supported formats include PDF, DOCX, Markdown, TXT, RTF, and HTML.
 
 ### Quick Test (no recording needed)
 
@@ -221,8 +237,10 @@ Hiring for a full-stack developer position begins next week.
 |-----------|---------------|-------|
 | Speaker Diarization (30 min audio) | ~1–2 min | Metal GPU accelerated |
 | Hebrew Transcription (30 min audio) | ~3–4 min | Apple ANE accelerated |
-| Summarization | 10–30 sec | Ollama (local) |
-| **Total for a 30-min meeting** | **~5–7 min** | |
+| Hierarchical Summarization | 2–8 min | Depends on chunk count and Gemma speed |
+| Transcript Polishing | 2–8 min | Optional LLM-corrected draft alongside raw transcript |
+| **Total for a 30-min meeting** | **~8–18 min** | Accuracy-focused defaults |
+| Streaming draft latency | ~15–40 sec per chunk | After each chunk closes |
 | Model download (first run only) | ~10 min | ~8 GB total |
 
 ---
@@ -313,7 +331,7 @@ Avoid `--trusted-host`; it bypasses certificate verification instead of fixing t
 A: The speaker diarization model (pyannote) requires you to accept its license terms. The token is free and only needed for the initial model download.
 
 **Q: How much disk space does it use?**
-A: ~8 GB total (3 GB Whisper + 3 GB pyannote + 1.7 GB Qwen3). One-time download.
+A: ~8–12 GB total depending on model cache (Whisper, pyannote, and Gemma/Ollama). One-time download.
 
 **Q: Does it work offline?**
 A: Yes! After the initial setup, everything runs completely offline. No internet required.
@@ -334,7 +352,7 @@ A: Not yet. The current version is a Mac PoC. An iOS app would use FluidAudio (C
 The iOS architecture is already planned (see `architecture.md`):
 - **FluidAudio** (Swift, CoreML) — Speaker diarization on Apple Neural Engine
 - **ivrit.ai Turbo** (CoreML) — Hebrew transcription
-- **Qwen3** (MLX-Swift) — Local summarization
+- **Gemma / local LLM** (MLX-Swift or Ollama equivalent) — Local summarization
 
 ---
 
@@ -345,7 +363,7 @@ MIT License — free to use, modify, and distribute.
 **Models used:**
 - ivrit.ai Whisper Turbo: MIT License
 - pyannote.audio: MIT License (model requires license acceptance)
-- Qwen3: Apache 2.0
+- Gemma: subject to Google's Gemma model license
 
 ---
 

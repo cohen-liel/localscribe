@@ -26,6 +26,7 @@ Usage:
     python3 localscribe.py <audio_file>
     python3 localscribe.py --record
     python3 localscribe.py --speakers 3 meeting.mp3
+    python3 localscribe.py --simulate-stream meeting.mp3
 
     # Document mode
     python3 localscribe.py --document <file>
@@ -72,6 +73,10 @@ MAX_DOC_CHARS = 50000  # Maximum characters to send to LLM
 SUMMARY_CHUNK_SECONDS = 120  # Summarize long meetings in 2-minute windows
 SUMMARY_REDUCE_MAX_CHARS = 24000  # Recursively reduce chunk summaries above this size
 SUMMARY_REDUCE_GROUP_SIZE = 8
+
+# Streaming simulation settings
+STREAM_CHUNK_SECONDS = 120  # Simulated live chunks for existing recordings
+MIN_STREAM_RMS = 0.0005  # Treat near-silence as empty instead of asking Whisper to guess
 
 
 # ============================================================
@@ -169,18 +174,23 @@ def ensure_dependencies(mode: str = "audio"):
 
     hf_token = None
 
-    if mode == "audio":
-        # Core packages for audio mode
+    if mode in {"audio", "stream"}:
+        # Core packages for audio and simulated streaming modes
         require_package("mlx-whisper", "mlx_whisper")
         print("  [OK] mlx-whisper (transcription)")
 
+        require_package("soundfile", "soundfile")
+        print("  [OK] soundfile (audio processing)")
+
+        require_command("ffmpeg", "Install with: brew install ffmpeg")
+        require_command("ffprobe", "Install with: brew install ffmpeg")
+        print("  [OK] ffmpeg + ffprobe")
+
+    if mode == "audio":
         require_package("torch", "torch")
         require_package("torchaudio", "torchaudio")
         require_package("pyannote.audio", "pyannote.audio")
         print("  [OK] pyannote.audio (speaker diarization)")
-
-        require_package("soundfile", "soundfile")
-        print("  [OK] soundfile (audio processing)")
 
         # Check HuggingFace token
         hf_token = get_hf_token()
@@ -190,10 +200,6 @@ def ensure_dependencies(mode: str = "audio"):
                 print("  [ERROR] Cannot continue without HuggingFace Token")
                 sys.exit(1)
         print("  [OK] HuggingFace Token")
-
-        require_command("ffmpeg", "Install with: brew install ffmpeg")
-        require_command("ffprobe", "Install with: brew install ffmpeg")
-        print("  [OK] ffmpeg + ffprobe")
 
     if mode == "document":
         require_package("pdfplumber", "pdfplumber")
@@ -436,6 +442,95 @@ def run_ollama_prompt(prompt: str, timeout: int = 180) -> str:
         timeout=timeout,
     )
     return clean_llm_output(result.stdout)
+
+
+def validate_audio_summary(summary: str, evidence: str, evidence_label: str) -> str:
+    """Rewrite a summary conservatively, removing unsupported structured claims."""
+    if len(evidence) > SUMMARY_REDUCE_MAX_CHARS:
+        evidence = evidence[:SUMMARY_REDUCE_MAX_CHARS] + "\n\n[... Evidence truncated ...]"
+
+    prompt = f"""/no_think
+You are a strict verifier for Hebrew audio summaries.
+You received source evidence ({evidence_label}) and a draft summary.
+
+Rewrite the draft summary in Hebrew using exactly the same final sections:
+
+## כותרת
+## סיכום
+## פריטי פעולה
+## החלטות שהתקבלו
+## נושאים פתוחים
+
+Keep useful content, but remove anything that is not explicitly supported by the evidence.
+
+Strict rules:
+- Action items require an explicit accepted responsibility or assignment to a specific person/team/organization for future work.
+- Do not list things that already happened during the meeting as action items.
+- Do not list "present background", "explain", "clarify", "let someone speak", or "continue the current discussion" as action items.
+- Do not convert criticism, rhetorical questions, public demands, policy recommendations, or calls for third parties to act into action items.
+- Decisions require explicit approvals, votes, or clear stated decisions.
+- Do not treat procedural discussion as a formal decision unless it is explicitly presented as a decision.
+- Do not use decision verbs such as "הוחלט" or "נקבע" in the summary unless an explicit decision is supported.
+  Prefer "נאמר", "הובהר", "נטען", or "הוצג" for non-decision content.
+- Open topics require explicit unresolved questions or deferred items that the meeting says should be revisited, checked, or resolved.
+- Do not convert criticism, allegations, public controversy, rhetorical questions, or broad policy disagreement into open topics.
+- When unsure, prefer: לא הוגדרו פריטי פעולה / לא התקבלו החלטות / לא הוגדרו נושאים פתוחים.
+
+---
+Source evidence:
+{evidence}
+---
+
+Draft summary:
+{summary}
+---
+
+Return only the corrected Hebrew summary:"""
+
+    return run_ollama_prompt(prompt, timeout=240)
+
+
+def validate_audio_chunk_summary(summary: str, evidence: str, evidence_label: str) -> str:
+    """Rewrite a chunk summary conservatively against its transcript evidence."""
+    if len(evidence) > SUMMARY_REDUCE_MAX_CHARS:
+        evidence = evidence[:SUMMARY_REDUCE_MAX_CHARS] + "\n\n[... Evidence truncated ...]"
+
+    prompt = f"""/no_think
+You are a strict verifier for one Hebrew audio chunk summary.
+You received source evidence ({evidence_label}) and a draft chunk summary.
+
+Rewrite the draft summary in Hebrew using exactly these sections:
+
+## תמצית החלק
+## פריטי פעולה
+## החלטות
+## נושאים פתוחים
+
+Keep useful content, but remove anything that is not explicitly supported by the evidence.
+
+Strict rules:
+- Action items require an explicit accepted responsibility or assignment to a specific person/team/organization for future work.
+- Requests to present background, explain context, give someone the floor, or continue the current discussion are not action items.
+- Do not convert criticism, rhetorical questions, public demands, policy recommendations, or calls for third parties to act into action items.
+- Decisions require explicit approvals, votes, or clear stated decisions.
+- Do not use decision verbs such as "הוחלט" or "נקבע" in the chunk summary unless an explicit decision is supported.
+  Prefer "נאמר", "הובהר", "נטען", or "הוצג" for non-decision content.
+- Open topics require explicit unresolved questions or deferred items that the meeting says should be revisited, checked, or resolved.
+- Do not convert criticism, allegations, public controversy, rhetorical questions, or broad policy disagreement into open topics.
+- When unsure, prefer: לא הוגדרו פריטי פעולה / לא התקבלו החלטות / לא הוגדרו נושאים פתוחים.
+
+---
+Source evidence:
+{evidence}
+---
+
+Draft chunk summary:
+{summary}
+---
+
+Return only the corrected Hebrew chunk summary:"""
+
+    return run_ollama_prompt(prompt, timeout=180)
 
 
 def split_text_by_durations(text: str, durations: list) -> list:
@@ -684,7 +779,12 @@ Transcript chunk:
 ---
 
 Summarize this chunk professionally and clearly:"""
-    return run_ollama_prompt(prompt, timeout=180)
+    draft_summary = run_ollama_prompt(prompt, timeout=180)
+    return validate_audio_chunk_summary(
+        draft_summary,
+        chunk["transcript"],
+        "transcript chunk with speaker labels",
+    )
 
 
 def format_summary_units_for_prompt(summary_units: list) -> str:
@@ -759,6 +859,7 @@ def reduce_summaries_recursively(summary_units: list) -> list:
 
 def summarize_from_summary_units(summary_units: list, num_speakers: int) -> str:
     """Create the final meeting summary from chunk or reduced summaries."""
+    evidence = format_summary_units_for_prompt(summary_units)
     prompt = f"""/no_think
 You are a professional audio transcript summarizer.
 You received structured summaries of a Hebrew audio transcript with {num_speakers} labeled speakers.
@@ -810,11 +911,12 @@ If none were stated, write: לא הוגדרו נושאים פתוחים.
 
 ---
 Time-ordered summaries:
-{format_summary_units_for_prompt(summary_units)}
+{evidence}
 ---
 
 Summarize professionally and clearly:"""
-    return run_ollama_prompt(prompt, timeout=240)
+    draft_summary = run_ollama_prompt(prompt, timeout=240)
+    return validate_audio_summary(draft_summary, evidence, "time-ordered chunk summaries")
 
 
 def summarize_audio_hierarchically(segments: list, num_speakers: int, speaker_map: dict):
@@ -1465,6 +1567,338 @@ def display_results(transcript: str, summary: str):
 
 
 # ============================================================
+# Simulated Streaming (from an existing recording)
+# ============================================================
+def summarize_stream_chunk(transcript: str, start: float, end: float, chunk_index: int, total_chunks: int) -> str:
+    """Summarize one simulated streaming chunk."""
+    if not transcript.strip():
+        return "לא זוהה דיבור ברור בחלק זה."
+
+    time_range = format_time_range(start, end)
+    prompt = f"""/no_think
+You are summarizing a live-style Hebrew audio chunk.
+This is chunk {chunk_index} of {total_chunks}, covering {time_range}.
+The transcript was produced without full-file speaker diarization, so do not claim reliable speaker identities.
+
+Provide a compact Hebrew summary for this chunk.
+Do not invent decisions, action items, owners, deadlines, or unresolved issues.
+Action items require an explicit accepted responsibility or assignment to a specific person/team/organization.
+Do not convert criticism, rhetorical questions, public demands, policy recommendations,
+or calls for third parties to act into action items.
+Decisions require explicit approvals, votes, or clear stated decisions.
+Open topics require explicit unresolved questions or deferred items that should be revisited.
+
+Use exactly these sections:
+
+## תמצית החלק
+2-4 sentences about what happened in this chunk.
+
+## פריטי פעולה
+Only explicit action items. If none, write: לא הוגדרו פריטי פעולה.
+
+## החלטות
+Only explicit decisions. If none, write: לא התקבלו החלטות.
+
+## נושאים פתוחים
+Only explicit unresolved topics. If none, write: לא הוגדרו נושאים פתוחים.
+
+---
+Transcript chunk:
+[טווח זמן {time_range}]
+{transcript}
+---
+
+Summarize this streaming chunk professionally and clearly:"""
+
+    draft_summary = run_ollama_prompt(prompt, timeout=180)
+    return validate_audio_chunk_summary(
+        draft_summary,
+        f"[טווח זמן {time_range}]\n{transcript}",
+        "streaming transcript chunk",
+    )
+
+
+def summarize_stream_final(stream_chunks: list) -> str:
+    """Create a final summary from simulated streaming chunk summaries."""
+    summary_units = [
+        {
+            "start": chunk["start"],
+            "end": chunk["end"],
+            "summary": chunk["summary"],
+        }
+        for chunk in stream_chunks
+        if chunk.get("summary")
+    ]
+
+    if not summary_units:
+        return "לא זוהה דיבור ברור לסיכום."
+
+    summary_units = reduce_summaries_recursively(summary_units)
+    evidence = format_summary_units_for_prompt(summary_units)
+
+    prompt = f"""/no_think
+You are creating a final Hebrew summary from live-style chunk summaries.
+The original audio was processed in chronological streaming chunks, without reliable full-file speaker diarization.
+
+Create the final summary for the whole audio.
+Preserve only explicit decisions, action items, unresolved topics, and important content.
+Do not invent agenda, owners, deadlines, speaker identities, decisions, or unresolved issues.
+Action items require an explicit accepted responsibility or assignment to a specific person/team/organization.
+Do not convert criticism, rhetorical questions, public demands, policy recommendations,
+or calls for third parties to act into action items.
+Decisions require explicit approvals, votes, or clear stated decisions.
+Open topics require explicit unresolved questions or deferred items that should be revisited.
+
+Use exactly these sections:
+
+## כותרת
+A short, focused Hebrew title (one line)
+
+## סיכום
+3-6 sentences summarizing the whole audio
+
+## פריטי פעולה
+A numbered list only if concrete action items were explicitly stated.
+If none were stated, write: לא הוגדרו פריטי פעולה.
+
+## החלטות שהתקבלו
+A list only if concrete decisions were explicitly stated.
+If none were stated, write: לא התקבלו החלטות.
+
+## נושאים פתוחים
+Topics raised but not resolved, only if explicit.
+If none were stated, write: לא הוגדרו נושאים פתוחים.
+
+---
+Time-ordered streaming chunk summaries:
+{evidence}
+---
+
+Summarize professionally and clearly:"""
+
+    draft_summary = run_ollama_prompt(prompt, timeout=240)
+    return validate_audio_summary(draft_summary, evidence, "streaming chunk summaries")
+
+
+def save_streaming_results(
+    audio_path: str,
+    stream_chunks: list,
+    final_summary: str,
+    chunk_seconds: int,
+):
+    """Save simulated streaming transcript chunks and summaries."""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_name = Path(audio_path).stem
+
+    chunk_blocks = []
+    transcript_lines = []
+    for chunk in stream_chunks:
+        time_range = format_time_range(chunk["start"], chunk["end"])
+        transcript = chunk.get("transcript", "").strip() or "[לא זוהה דיבור ברור]"
+        transcript_lines.append(f"[{time_range}] {transcript}")
+        chunk_blocks.append(
+            f"### Chunk {chunk['index']} ({time_range})\n\n"
+            f"**Transcript:**\n\n{transcript}\n\n"
+            f"**Chunk Summary:**\n\n{chunk['summary']}"
+        )
+
+    duration = stream_chunks[-1]["end"] if stream_chunks else 0
+
+    md_file = OUTPUT_DIR / f"stream_{base_name}_{timestamp}.md"
+    md_content = f"""# Streaming Simulation — LocalScribe
+
+**Processed:** {datetime.now().strftime("%Y-%m-%d %H:%M")}
+**Source file:** {Path(audio_path).name}
+**Mode:** Simulated streaming from existing recording
+**Chunk size:** {chunk_seconds}s
+**Chunks:** {len(stream_chunks)}
+**Duration:** {format_timestamp(duration)}
+**Speaker tracking:** Not reliable in streaming simulation
+
+---
+
+## Final Streaming Summary
+
+{final_summary}
+
+---
+
+## Streaming Chunks
+
+{chr(10).join(chunk_blocks)}
+
+---
+
+## Streaming Transcript
+
+{chr(10).join(transcript_lines)}
+"""
+    md_file.write_text(md_content, encoding="utf-8")
+
+    json_file = OUTPUT_DIR / f"stream_{base_name}_{timestamp}.json"
+    data = {
+        "metadata": {
+            "date": datetime.now().isoformat(),
+            "audio_file": str(audio_path),
+            "mode": "streaming_simulation",
+            "chunk_seconds": chunk_seconds,
+            "duration_seconds": duration,
+            "speaker_tracking": "not_reliable_in_streaming_simulation",
+            "models": {
+                "transcription": WHISPER_MODEL,
+                "summarization": OLLAMA_MODEL,
+            },
+        },
+        "chunks": stream_chunks,
+        "final_summary": final_summary,
+        "streaming_transcript": "\n".join(transcript_lines),
+    }
+    json_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    print("Streaming simulation results saved:")
+    print(f"   Markdown: {md_file}")
+    print(f"   JSON:     {json_file}")
+    print()
+
+    return md_file, json_file
+
+
+def process_stream_simulation(audio_path: str, chunk_seconds: int = STREAM_CHUNK_SECONDS):
+    """
+    Simulate live streaming from an existing recording.
+    This intentionally avoids full-file diarization so the quality reflects a live draft.
+    """
+    import mlx_whisper
+    import numpy as np
+    import soundfile as sf
+
+    print()
+    print("+" + "=" * 62 + "+")
+    print("|           LocalScribe — Streaming Simulation                 |")
+    print("|   Existing recording -> chunk transcript -> rolling summary  |")
+    print("+" + "=" * 62 + "+")
+    print()
+    print(f"File: {audio_path}")
+    print(f"Chunk size: {chunk_seconds}s")
+    print("Speaker tracking: disabled for live-style draft")
+    print()
+
+    total_start = time.time()
+
+    full_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(audio_path),
+             "-ac", "1", "-ar", "16000", "-vn", full_wav],
+            check=True,
+        )
+        audio_data, sr = sf.read(full_wav)
+    finally:
+        if os.path.exists(full_wav):
+            os.unlink(full_wav)
+
+    if len(audio_data) == 0:
+        print("[ERROR] Audio file is empty")
+        return None
+
+    chunk_samples = int(chunk_seconds * sr)
+    total_chunks = (len(audio_data) + chunk_samples - 1) // chunk_samples
+    duration = len(audio_data) / sr
+    print(f"Duration: {format_timestamp(duration)}")
+    print(f"Chunks to process: {total_chunks}")
+    print()
+
+    stream_chunks = []
+
+    for chunk_index, start_sample in enumerate(range(0, len(audio_data), chunk_samples), start=1):
+        end_sample = min(start_sample + chunk_samples, len(audio_data))
+        chunk_audio = audio_data[start_sample:end_sample]
+        start_sec = start_sample / sr
+        end_sec = end_sample / sr
+        time_range = format_time_range(start_sec, end_sec)
+
+        print(f"Chunk {chunk_index}/{total_chunks} ({time_range})")
+
+        rms = float(np.sqrt(np.mean(np.square(chunk_audio)))) if len(chunk_audio) else 0.0
+        transcript = ""
+        transcribe_elapsed = 0.0
+
+        if rms >= MIN_STREAM_RMS:
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                sf.write(tmp.name, chunk_audio, sr)
+                tmp_path = tmp.name
+
+            try:
+                transcribe_start = time.time()
+                result = mlx_whisper.transcribe(
+                    tmp_path,
+                    path_or_hf_repo=WHISPER_MODEL,
+                    language="he",
+                    task="transcribe",
+                )
+                transcribe_elapsed = time.time() - transcribe_start
+                transcript = result["text"].strip()
+            finally:
+                os.unlink(tmp_path)
+        else:
+            print("   Near-silence detected; skipping transcription")
+
+        summarize_start = time.time()
+        chunk_summary = summarize_stream_chunk(
+            transcript,
+            start_sec,
+            end_sec,
+            chunk_index,
+            total_chunks,
+        )
+        summarize_elapsed = time.time() - summarize_start
+
+        stream_chunks.append({
+            "index": chunk_index,
+            "start": start_sec,
+            "end": end_sec,
+            "rms": rms,
+            "transcript": transcript,
+            "summary": chunk_summary,
+            "transcription_seconds": transcribe_elapsed,
+            "summary_seconds": summarize_elapsed,
+        })
+
+        print(f"   Transcript chars: {len(transcript)}")
+        print(f"   Transcription: {transcribe_elapsed:.1f}s | Summary: {summarize_elapsed:.1f}s")
+        print()
+
+    print("Creating final streaming summary from chunk summaries...")
+    final_start = time.time()
+    final_summary = summarize_stream_final(stream_chunks)
+    final_elapsed = time.time() - final_start
+    print(f"   Final summary complete in {final_elapsed:.1f}s")
+    print()
+
+    total_elapsed = time.time() - total_start
+    print(f"Total streaming simulation time: {total_elapsed:.1f}s")
+    print()
+
+    md_file, json_file = save_streaming_results(
+        audio_path,
+        stream_chunks,
+        final_summary,
+        chunk_seconds,
+    )
+
+    print("=" * 60)
+    print("Final Streaming Summary:")
+    print("=" * 60)
+    print()
+    print(final_summary)
+    print()
+    print("=" * 60)
+
+    return md_file
+
+
+# ============================================================
 # Recording
 # ============================================================
 def record_audio(duration_seconds: int = None) -> Optional[str]:
@@ -1595,6 +2029,32 @@ def main():
             print("[ERROR] Directory path required after --document-dir")
             return
 
+    if "--simulate-stream" in sys.argv:
+        idx = sys.argv.index("--simulate-stream")
+        if idx + 1 >= len(sys.argv):
+            print("[ERROR] File path required after --simulate-stream")
+            return
+
+        audio_path = sys.argv[idx + 1]
+        if not os.path.exists(audio_path):
+            print(f"[ERROR] File not found: {audio_path}")
+            sys.exit(1)
+
+        chunk_seconds = STREAM_CHUNK_SECONDS
+        if "--chunk-seconds" in sys.argv:
+            chunk_idx = sys.argv.index("--chunk-seconds")
+            if chunk_idx + 1 >= len(sys.argv):
+                print("[ERROR] Seconds value required after --chunk-seconds")
+                return
+            chunk_seconds = int(sys.argv[chunk_idx + 1])
+            if chunk_seconds <= 0:
+                print("[ERROR] --chunk-seconds must be positive")
+                return
+
+        ensure_dependencies(mode="stream")
+        process_stream_simulation(audio_path, chunk_seconds)
+        return
+
     # Audio mode
     if len(sys.argv) > 1:
         arg = sys.argv[1]
@@ -1613,6 +2073,7 @@ def main():
             print("  python3 localscribe.py <audio_file>            # Process a file")
             print("  python3 localscribe.py --speakers 3 file.mp3   # Specify speaker count")
             print("  python3 localscribe.py --record                # Record and process")
+            print("  python3 localscribe.py --simulate-stream file.mp3 --chunk-seconds 120")
             print()
             print("  Document mode (smart summarization):")
             print("  python3 localscribe.py --document <file>       # Summarize a single document")
@@ -1650,9 +2111,10 @@ def main():
     print("  3.  Transcribe only (no speaker diarization)")
     print("  4.  Summarize a document")
     print("  5.  Summarize all documents in a folder")
+    print("  6.  Simulate streaming from an audio file")
     print()
 
-    choice = input("Choose (1-5): ").strip()
+    choice = input("Choose (1-6): ").strip()
 
     if choice == "1":
         hf_token = ensure_dependencies(mode="audio")
@@ -1712,6 +2174,18 @@ def main():
         print()
         dir_path = input("Enter path to folder: ").strip()
         process_document_dir(dir_path)
+
+    elif choice == "6":
+        ensure_dependencies(mode="stream")
+        print()
+        audio_path = input("Enter path to audio file: ").strip()
+        if not os.path.exists(audio_path):
+            print(f"[ERROR] File not found: {audio_path}")
+            return
+
+        chunk_input = input(f"Chunk seconds (Enter for {STREAM_CHUNK_SECONDS}): ").strip()
+        chunk_seconds = int(chunk_input) if chunk_input else STREAM_CHUNK_SECONDS
+        process_stream_simulation(audio_path, chunk_seconds)
 
     else:
         print("[ERROR] Invalid choice")

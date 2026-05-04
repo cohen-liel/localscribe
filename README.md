@@ -178,9 +178,9 @@ python3 quick_test.py
 python3 web_app.py
 ```
 
-Open `http://127.0.0.1:8765` in your browser. The web UI supports uploading
-audio files and documents, shows live processing logs, and displays the saved
-summary, transcript, and JSON output.
+Open `http://127.0.0.1:8765` in your browser. The web UI supports browser
+microphone recording, uploading audio files and documents, live processing logs,
+and displays the saved summary, transcript, and JSON output.
 
 ### Supported Audio Formats
 

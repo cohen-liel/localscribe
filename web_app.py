@@ -335,10 +335,49 @@ HTML_PAGE = r"""<!doctype html>
       color: var(--text);
       border-color: var(--line);
     }
+    button.danger {
+      background: #b42318;
+      border-color: #b42318;
+    }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+    }
     .row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
+    }
+    .recorder {
+      display: grid;
+      gap: 10px;
+    }
+    .record-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      padding: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #98a2b3;
+      flex: 0 0 auto;
+    }
+    .recording .dot {
+      background: #d92d20;
+      box-shadow: 0 0 0 4px rgba(217, 45, 32, .12);
+    }
+    audio {
+      width: 100%;
+      min-height: 36px;
     }
     .drop {
       border: 1px dashed #9aa7b7;
@@ -485,6 +524,35 @@ HTML_PAGE = r"""<!doctype html>
   <main>
     <aside>
       <div class="panel">
+        <h2>Record</h2>
+        <div class="recorder" id="recorderPanel">
+          <div class="record-status" id="recordStatus">
+            <span class="dot"></span>
+            <span id="recordLabel">Microphone ready</span>
+            <strong id="recordTimer">00:00</strong>
+          </div>
+          <label for="recordModeInput">Process recording as</label>
+          <select id="recordModeInput">
+            <option value="audio">Audio full pass</option>
+            <option value="stream">Streaming simulation</option>
+          </select>
+          <div class="row">
+            <div>
+              <label for="recordSpeakersInput">Speakers</label>
+              <input id="recordSpeakersInput" type="number" min="1" max="20" placeholder="auto">
+            </div>
+            <div>
+              <label for="recordChunkInput">Chunk seconds</label>
+              <input id="recordChunkInput" type="number" min="5" value="120">
+            </div>
+          </div>
+          <button id="startRecordButton" type="button">Start Recording</button>
+          <button id="stopRecordButton" type="button" class="danger" disabled>Stop</button>
+          <button id="processRecordButton" type="button" class="secondary" disabled>Process Recording</button>
+          <audio id="recordPreview" controls hidden></audio>
+        </div>
+      </div>
+      <div class="panel">
         <h2>Upload</h2>
         <form id="uploadForm">
           <div class="drop" id="dropZone">
@@ -536,7 +604,19 @@ HTML_PAGE = r"""<!doctype html>
   </main>
 
   <script>
-    const state = { jobs: [], selected: null, tab: 'summary', timer: null };
+    const state = {
+      jobs: [],
+      selected: null,
+      tab: 'summary',
+      timer: null,
+      recorder: null,
+      recordStream: null,
+      recordChunks: [],
+      recordBlob: null,
+      recordStartedAt: null,
+      recordTimer: null,
+      recordMime: '',
+    };
     const $ = (id) => document.getElementById(id);
 
     function escapeHtml(value) {
@@ -665,6 +745,119 @@ HTML_PAGE = r"""<!doctype html>
       state.selected = payload.jobs[0].id;
       await refreshJobs();
     });
+
+    function pickRecordMimeType() {
+      if (!window.MediaRecorder) return '';
+      const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+      ];
+      return candidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
+    }
+
+    function extensionForMime(mime) {
+      if (mime.includes('mp4')) return 'm4a';
+      if (mime.includes('ogg')) return 'ogg';
+      return 'webm';
+    }
+
+    function setRecordUi(status, isRecording=false) {
+      $('recordLabel').textContent = status;
+      $('recordStatus').classList.toggle('recording', isRecording);
+      $('startRecordButton').disabled = isRecording;
+      $('stopRecordButton').disabled = !isRecording;
+      $('processRecordButton').disabled = isRecording || !state.recordBlob;
+    }
+
+    function updateRecordTimer() {
+      if (!state.recordStartedAt) {
+        $('recordTimer').textContent = '00:00';
+        return;
+      }
+      const elapsed = Math.floor((Date.now() - state.recordStartedAt) / 1000);
+      const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const seconds = String(elapsed % 60).padStart(2, '0');
+      $('recordTimer').textContent = `${minutes}:${seconds}`;
+    }
+
+    async function startRecording() {
+      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+        alert('Browser recording is not supported in this browser.');
+        return;
+      }
+      state.recordBlob = null;
+      state.recordChunks = [];
+      $('recordPreview').hidden = true;
+      $('recordPreview').removeAttribute('src');
+
+      try {
+        state.recordStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        state.recordMime = pickRecordMimeType();
+        const options = state.recordMime ? { mimeType: state.recordMime } : {};
+        state.recorder = new MediaRecorder(state.recordStream, options);
+        state.recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) state.recordChunks.push(event.data);
+        };
+        state.recorder.onstop = () => {
+          state.recordBlob = new Blob(state.recordChunks, { type: state.recordMime || 'audio/webm' });
+          const url = URL.createObjectURL(state.recordBlob);
+          $('recordPreview').src = url;
+          $('recordPreview').hidden = false;
+          state.recordStream?.getTracks().forEach(track => track.stop());
+          state.recordStream = null;
+          clearInterval(state.recordTimer);
+          state.recordStartedAt = null;
+          setRecordUi(`Recording ready (${Math.round(state.recordBlob.size / 1024)} KB)`, false);
+        };
+        state.recorder.start();
+        state.recordStartedAt = Date.now();
+        updateRecordTimer();
+        state.recordTimer = setInterval(updateRecordTimer, 500);
+        setRecordUi('Recording...', true);
+      } catch (error) {
+        alert(`Could not access microphone: ${error.message || error}`);
+        setRecordUi('Microphone unavailable', false);
+      }
+    }
+
+    function stopRecording() {
+      if (state.recorder && state.recorder.state !== 'inactive') {
+        state.recorder.stop();
+      }
+    }
+
+    async function processRecording() {
+      if (!state.recordBlob) {
+        alert('No recording available.');
+        return;
+      }
+      const form = new FormData();
+      const ext = extensionForMime(state.recordMime || state.recordBlob.type || '');
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      form.append('file', state.recordBlob, `browser_recording_${stamp}.${ext}`);
+      form.append('mode', $('recordModeInput').value);
+      form.append('chunk_seconds', $('recordChunkInput').value || '120');
+      const speakers = $('recordSpeakersInput').value.trim();
+      if (speakers) form.append('speakers', speakers);
+
+      setRecordUi('Uploading recording...', false);
+      const res = await fetch('/api/jobs', { method: 'POST', body: form });
+      const payload = await res.json();
+      if (!res.ok) {
+        alert(payload.error || 'Recording upload failed');
+        setRecordUi('Recording ready', false);
+        return;
+      }
+      state.selected = payload.jobs[0].id;
+      await refreshJobs();
+      setRecordUi('Recording submitted', false);
+    }
+
+    $('startRecordButton').addEventListener('click', startRecording);
+    $('stopRecordButton').addEventListener('click', stopRecording);
+    $('processRecordButton').addEventListener('click', processRecording);
 
     document.querySelectorAll('.tab').forEach(button => {
       button.addEventListener('click', () => {

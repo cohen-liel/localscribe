@@ -172,6 +172,16 @@ Supported formats include PDF, DOCX, Markdown, TXT, RTF, and HTML.
 python3 quick_test.py
 ```
 
+### Local Web UI
+
+```bash
+python3 web_app.py
+```
+
+Open `http://127.0.0.1:8765` in your browser. The web UI supports uploading
+audio files and documents, shows live processing logs, and displays the saved
+summary, transcript, and JSON output.
+
 ### Supported Audio Formats
 
 mp3, wav, m4a, mp4, webm, ogg, flac, aac
@@ -250,6 +260,7 @@ Hiring for a full-stack developer position begins next week.
 ```
 localscribe/
 ├── localscribe.py              # Main script (v2.0 — full pipeline)
+├── web_app.py                  # Local upload UI for audio/documents
 ├── transcribe_and_summarize.py # Legacy script (v1.0 — transcription + summary only)
 ├── quick_test.py               # Quick smoke test for all components
 ├── install.sh                  # Automated installation script

@@ -15,7 +15,7 @@ Requirements:
 Installation:
     pip install mlx-whisper
     brew install ollama
-    ollama pull qwen3:1.7b
+    ollama pull gemma4:e4b   # or any other Ollama model (qwen3:4b, gemma3:4b, ...)
 """
 
 import subprocess
@@ -30,9 +30,9 @@ from datetime import datetime
 # ============================================================
 # Configuration
 # ============================================================
-WHISPER_MODEL = "mlx-community/whisper-large-v3-turbo"  # Transcription model — excellent Hebrew support
-OLLAMA_MODEL = "qwen3:1.7b"  # Summarization model — small, fast, works great on M4
-OUTPUT_DIR = Path.home() / "LocalScribe_Output"
+WHISPER_MODEL = "mlx-community/ivrit-ai-whisper-large-v3-turbo-mlx"  # Hebrew-tuned MLX Whisper
+OLLAMA_MODEL = "gemma4:e4b"  # Summarization — change to any Ollama model you have
+OUTPUT_DIR = Path(__file__).parent / "output"  # Avoids macOS TCC restrictions on ~/Documents
 
 
 def ensure_dependencies():

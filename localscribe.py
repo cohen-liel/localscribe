@@ -52,9 +52,9 @@ warnings.filterwarnings("ignore")
 # ============================================================
 # Configuration
 # ============================================================
-WHISPER_MODEL = "ivrit-ai/whisper-large-v3-turbo-d4"  # Best Hebrew ASR model (94-95% accuracy)
-OLLAMA_MODEL = "qwen3:1.7b"  # Fast, good Hebrew support
-OUTPUT_DIR = Path.home() / "LocalScribe_Output"
+WHISPER_MODEL = "mlx-community/ivrit-ai-whisper-large-v3-turbo-mlx"  # MLX-converted ivrit.ai Hebrew model
+OLLAMA_MODEL = "gemma4:e4b"  # User-installed; strong Hebrew support
+OUTPUT_DIR = Path(__file__).parent / "output"
 HF_TOKEN_PATH = Path.home() / ".localscribe_hf_token"
 
 # Diarization settings
@@ -254,7 +254,8 @@ def transcribe_segments(audio_path: str, segments: list):
     Returns segments enriched with transcription text.
     """
     import mlx_whisper
-    from pydub import AudioSegment
+    import soundfile as sf
+    import numpy as np
 
     print("Stage 2: Hebrew Transcription (ivrit.ai Turbo)...")
     print(f"   Model: {WHISPER_MODEL}")
@@ -263,8 +264,15 @@ def transcribe_segments(audio_path: str, segments: list):
 
     start_time = time.time()
 
-    # Load the full audio
-    audio = AudioSegment.from_file(audio_path)
+    # Convert source to 16kHz mono WAV via ffmpeg (avoids pydub/ffprobe — Santa kills ffprobe from subprocess)
+    full_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(audio_path),
+         "-ac", "1", "-ar", "16000", "-vn", full_wav],
+        check=True,
+    )
+    audio_data, sr = sf.read(full_wav)
+    os.unlink(full_wav)
 
     transcribed_segments = []
     total = len(segments)
@@ -273,14 +281,14 @@ def transcribe_segments(audio_path: str, segments: list):
     merged_segments = merge_adjacent_segments(segments, max_gap=1.5)
 
     for i, seg in enumerate(merged_segments):
-        # Extract audio segment
-        start_ms = int(seg["start"] * 1000)
-        end_ms = int(seg["end"] * 1000)
-        segment_audio = audio[start_ms:end_ms]
+        # Extract audio segment (slice numpy array directly)
+        start_idx = int(seg["start"] * sr)
+        end_idx = int(seg["end"] * sr)
+        segment_audio = audio_data[start_idx:end_idx]
 
         # Save to temp file for Whisper
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-            segment_audio.export(tmp.name, format="wav")
+            sf.write(tmp.name, segment_audio, sr)
             tmp_path = tmp.name
 
         try:

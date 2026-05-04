@@ -1,49 +1,5 @@
-# Python
+output/
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg-info/
-dist/
-build/
-.eggs/
-
-# Virtual environments
-.venv/
-venv/
-env/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
+*.pyc
+.localscribe_env/
 .DS_Store
-Thumbs.db
-
-# Models (too large for git)
-*.bin
-*.pt
-*.onnx
-*.mlmodel
-*.mlpackage/
-
-# Output files
-LocalScribe_Output/
-
-# Secrets
-.localscribe_hf_token
-*.token
-
-# Audio files (test recordings - exclude from root)
-*.wav
-*.mp3
-*.m4a
-*.ogg
-*.flac
-
-# But INCLUDE test data audio files
-!test_data/audio/*.mp3
-!test_data/audio/*.wav

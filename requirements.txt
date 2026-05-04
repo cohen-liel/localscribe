@@ -1,20 +1,34 @@
 # LocalScribe v2.0 - Dependencies
 # Install: pip install -r requirements.txt
+#
+# Note for Meta corp Macs (or any Mac with SSL MITM proxy):
+#   pip install -r requirements.txt --trusted-host pypi.org --trusted-host files.pythonhosted.org
 
 # Transcription (Hebrew ASR on Apple Silicon)
 mlx-whisper>=0.4.0
 
 # Speaker Diarization
-pyannote.audio>=3.1.0
-torch>=2.0.0
-torchaudio>=2.0.0
+# pyannote.audio 4.x requires an additional gated `speaker-diarization-community-1` model
+# and changes the public API. Pin to 3.x to keep the README install flow working.
+pyannote.audio>=3.1.0,<4.0
+
+# Torch 2.6 changed the default of `torch.load(weights_only=True)`, breaking pyannote
+# checkpoints. Torch 2.7+ also drops `torchaudio.AudioMetaData`. Pin to 2.5.x.
+torch>=2.2,<2.6
+torchaudio>=2.2,<2.6
+
+# huggingface_hub 1.x removed `use_auth_token` (which pyannote 3.x still uses).
+huggingface_hub<0.30
 
 # Audio processing
-pydub>=0.25.1
+# pydub is no longer used directly (some Mac endpoint security tools — e.g. Santa —
+# kill ffprobe when launched as a Python subprocess). We use ffmpeg + soundfile instead.
+soundfile>=0.12
 
 # Document processing
 pdfplumber>=0.10.0
 python-docx>=1.0.0
 
-# Optional: for better audio format support
-# soundfile>=0.12.0
+# ffmpeg fallback when Homebrew is not available (provides a static binary via pip)
+# Install with:  pip install static-ffmpeg && python -c "import static_ffmpeg; static_ffmpeg.add_paths()"
+# static-ffmpeg>=2.0

@@ -15,7 +15,7 @@ import os
 import time
 
 # Configuration (must match localscribe.py)
-OLLAMA_MODEL = "qwen3:1.7b"
+OLLAMA_MODEL = "gemma4:e4b"
 
 # Sample transcript: a simulated Hebrew team meeting with 5 speakers.
 # Used to test the summarization pipeline without requiring audio input.

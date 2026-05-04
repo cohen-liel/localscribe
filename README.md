@@ -10,9 +10,9 @@ No cloud. No API keys for transcription. No data leaves your machine. Ever.
 
 | Feature | v1.0 | v2.0 |
 |---------|------|------|
-| Hebrew Transcription | Whisper Large V3 | **ivrit.ai Turbo** (94–95% accuracy) |
-| Speaker Diarization | — | **pyannote 3.1** (who said what) |
-| Summarization | Qwen3 1.7B | **Qwen3 1.7B** (speaker-aware context) |
+| Hebrew Transcription | Whisper Large V3 | **ivrit.ai Turbo (MLX)** (94–95% accuracy) |
+| Speaker Diarization | — | **pyannote 3.x** (who said what) |
+| Summarization | Qwen3 1.7B | **Gemma 4 e4b** (speaker-aware, configurable) |
 | Action Items | Basic | **Assigned to specific speakers** |
 | Apple Metal GPU | — | **Accelerated diarization** |
 | Document Summarization | — | **Medical, legal, business, HR, and more** |
@@ -98,19 +98,25 @@ chmod +x install.sh
 ```bash
 # 1. System tools
 brew install ffmpeg sox ollama
+# If you can't use Homebrew, install python+ollama manually and rely on the
+# pip-based static-ffmpeg fallback (install.sh handles this automatically).
 
-# 2. Summarization model
+# 2. Summarization model — pick any Ollama model you like
 ollama serve &
-ollama pull qwen3:1.7b
+ollama pull gemma4:e4b      # default; alternatives: qwen3:4b, gemma3:4b, qwen3:1.7b
 
 # 3. Python environment
 python3 -m venv ~/.localscribe_env
 source ~/.localscribe_env/bin/activate
 pip install -r requirements.txt
+# On Macs with a corp SSL MITM proxy add:
+#   --trusted-host pypi.org --trusted-host files.pythonhosted.org
 
 # 4. HuggingFace Token (free, required for speaker diarization)
 #    Create token: https://huggingface.co/settings/tokens
 #    Accept terms: https://huggingface.co/pyannote/speaker-diarization-3.1
+#                  https://huggingface.co/pyannote/segmentation-3.0
+#    Save:        echo "hf_xxx" > ~/.localscribe_hf_token && chmod 600 ~/.localscribe_hf_token
 ```
 
 ---
@@ -262,17 +268,41 @@ localscribe/
 - An external microphone significantly improves quality
 
 ### Better Summarization
-- If summaries are not detailed enough with `qwen3:1.7b`, try a larger model:
+- The default is `gemma4:e4b` (set in `localscribe.py`). To switch models:
   ```bash
-  ollama pull qwen3:4b    # Better quality, slightly slower
-  ollama pull gemma3:4b   # Excellent alternative
+  ollama pull qwen3:4b    # Smaller, faster
+  ollama pull gemma3:4b   # Lightweight alternative
+  ollama pull qwen3:1.7b  # Smallest, fastest
   ```
-- Edit `OLLAMA_MODEL` in the script accordingly
+- Edit `OLLAMA_MODEL` at the top of `localscribe.py` accordingly
 
 ### Better Speaker Diarization
 - Specify the known number of speakers: `--speakers 3`
 - Use a stereo microphone that separates channels if possible
 - Minimize background noise
+
+---
+
+## Troubleshooting
+
+**Pip SSL errors (`CERTIFICATE_VERIFY_FAILED`)** — your network is intercepting TLS (common on corporate Macs). Use:
+```bash
+pip install -r requirements.txt --trusted-host pypi.org --trusted-host files.pythonhosted.org
+```
+
+**`brew install` fails with "not writable"** — fix permissions, or skip brew and let `install.sh` use its `static-ffmpeg` pip fallback. To repair brew: `sudo chown -R $(whoami) /opt/homebrew`.
+
+**ffprobe is killed (`exit -9`) when called from Python** — endpoint security tools (e.g. Santa) block unsigned binaries spawned from Python. LocalScribe v2.0 already avoids `pydub`/`ffprobe` and reads audio with `ffmpeg + soundfile` instead, so this only affects custom scripts.
+
+**`PermissionError` writing to `~/LocalScribe_Output`** — macOS TCC blocks Python from creating folders in protected locations. Output now defaults to `./output/` next to the script.
+
+**`Cannot access gated repo: pyannote/speaker-diarization-community-1`** — you installed `pyannote.audio>=4.0`. Pin to 3.x: `pip install "pyannote.audio>=3.1,<4.0"`.
+
+**`UnpicklingError: Weights only load failed`** — `torch>=2.6` changed `torch.load` defaults. Pin to 2.5: `pip install "torch>=2.2,<2.6" "torchaudio>=2.2,<2.6"`.
+
+**`AttributeError: module 'torchaudio' has no attribute 'AudioMetaData'`** — `torchaudio>=2.7` removed it. Same pin as above.
+
+**`hf_hub_download() got an unexpected keyword argument 'use_auth_token'`** — `huggingface_hub>=1.0` removed it. Pin: `pip install "huggingface_hub<0.30"`.
 
 ---
 

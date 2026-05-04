@@ -552,13 +552,23 @@ If none were stated, write: לא הוגדרו נושאים פתוחים.
 
 Avoid inventing agenda, unresolved issues, decisions, owners, or deadlines.
 Action items must be explicit future tasks assigned or requested in the transcript.
+Only include action items when a participant accepts responsibility or the chair assigns a task
+to a specific participant, team, or organization.
 Do not list things that already happened, such as speakers presenting background.
 Do not list "present background", "explain the issue", "clarify the topic",
 or "let a speaker speak" as action items unless they are scheduled as future work.
+Do not convert criticism, rhetorical questions, public demands, policy recommendations,
+or calls for third parties to act into action items.
 When unsure whether something is an action item, write: לא הוגדרו פריטי פעולה.
 Decisions must be explicit approvals, votes, or clear stated decisions.
 Do not turn explanations, claims, or recommendations into decisions.
+Do not treat procedural conversation such as "we will discuss part of the list"
+as a formal decision unless it is explicitly presented as a decision.
 Open topics must be explicit unresolved questions or deferred items, not general background.
+Only include open topics that the meeting explicitly says should be revisited,
+continued later, checked, or resolved.
+Do not convert criticism, allegations, public controversy, rhetorical questions,
+or broad policy disagreement into open topics.
 When unsure whether something is an open topic, write: לא הוגדרו נושאים פתוחים.
 Use the exact Hebrew section headings above.
 Do not add any extra sections or labels beyond the requested section headings.
@@ -632,13 +642,23 @@ The full audio has {num_speakers} labeled speakers.
 Provide a compact Hebrew chunk summary. Preserve speaker labels when useful.
 Do not infer names, gender, decisions, tasks, or deadlines unless they are explicit.
 Action items must be explicit future tasks assigned or requested in this chunk.
+Only include action items when a participant accepts responsibility or the chair assigns a task
+to a specific participant, team, or organization.
 Do not list things that already happened, such as speakers presenting background.
 Do not list "present background", "explain the issue", "clarify the topic",
 or "let a speaker speak" as action items unless they are scheduled as future work.
+Do not convert criticism, rhetorical questions, public demands, policy recommendations,
+or calls for third parties to act into action items.
 When unsure whether something is an action item, write: לא הוגדרו פריטי פעולה.
 Decisions must be explicit approvals, votes, or clear stated decisions.
 Do not turn explanations, claims, or recommendations into decisions.
+Do not treat procedural conversation such as "we will discuss part of the list"
+as a formal decision unless it is explicitly presented as a decision.
 Open topics must be explicit unresolved questions or deferred items, not general background.
+Only include open topics that the meeting explicitly says should be revisited,
+continued later, checked, or resolved.
+Do not convert criticism, allegations, public controversy, rhetorical questions,
+or broad policy disagreement into open topics.
 When unsure whether something is an open topic, write: לא הוגדרו נושאים פתוחים.
 
 Use exactly these sections:
@@ -693,7 +713,10 @@ Keep explicit decisions, action items, unresolved topics, and important speaker-
 Do not invent details that are not present in the summaries.
 Preserve action items only when they are explicit future tasks assigned or requested.
 Drop vague or already-completed items such as presenting background or explaining a topic.
+Drop criticism, rhetorical questions, public demands, policy recommendations,
+or calls for third parties to act.
 Preserve decisions only when they are explicit approvals, votes, or clear stated decisions.
+Drop procedural discussion unless it is explicitly presented as a decision.
 
 ---
 Intermediate summaries:
@@ -745,13 +768,23 @@ Create the final Hebrew summary for the whole audio.
 Preserve only explicit decisions, action items, unresolved topics, and meaningful speaker-specific points.
 Do not invent agenda, owners, deadlines, decisions, or unresolved issues.
 Action items must be explicit future tasks assigned or requested.
+Only include action items when a participant accepts responsibility or the chair assigns a task
+to a specific participant, team, or organization.
 Do not list things that already happened, such as speakers presenting background.
 Do not list "present background", "explain the issue", "clarify the topic",
 or "let a speaker speak" as action items unless they are scheduled as future work.
+Do not convert criticism, rhetorical questions, public demands, policy recommendations,
+or calls for third parties to act into action items.
 When unsure whether something is an action item, write: לא הוגדרו פריטי פעולה.
 Decisions must be explicit approvals, votes, or clear stated decisions.
 Do not turn explanations, claims, or recommendations into decisions.
+Do not treat procedural conversation such as "we will discuss part of the list"
+as a formal decision unless it is explicitly presented as a decision.
 Open topics must be explicit unresolved questions or deferred items, not general background.
+Only include open topics that the meeting explicitly says should be revisited,
+continued later, checked, or resolved.
+Do not convert criticism, allegations, public controversy, rhetorical questions,
+or broad policy disagreement into open topics.
 When unsure whether something is an open topic, write: לא הוגדרו נושאים פתוחים.
 Do not infer speaker gender from speaker labels. Refer to speakers as "דובר 1", "דובר 2", etc. when needed.
 
